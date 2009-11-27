@@ -40,7 +40,7 @@ class ImgSizer(object):
         query.sort()
         if self.sig_key:
             query['path'] = local_path
-            query.sign(self.sig_key, add_time=False, nonce_bits=32)
+            query.sign(self.sig_key, add_time=False, add_nonce=False)
             query.remove('path')
         return local_path + ('?' + str(query) if kwargs else '')
         
