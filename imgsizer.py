@@ -26,10 +26,11 @@ class ImgSizer(object):
     MODE_CROP = 'crop'
     MODES = (MODE_FIT, MODE_CROP)
     
-    def __init__(self, path, cache_root=None, sig_key=None):
+    def __init__(self, path, cache_root=None, sig_key=None, max_age=3600):
         self.path = [os.path.abspath(x) for x in path]
         self.cache_root = cache_root
         self.sig_key = sig_key
+        self.max_age = max_age
     
     def build_url(self, local_path, **kwargs):
         for key in 'width height quality'.split():
@@ -104,6 +105,9 @@ class ImgSizer(object):
             if not query.verify(self.sig_key):
                 log.warning('signature not accepted')
                 raise HttpNotFound()
+        
+        if self.max_age:
+            res.max_age = self.max_age
         
         raw_mtime = os.path.getmtime(path)
         mtime = datetime.datetime.utcfromtimestamp(raw_mtime)
