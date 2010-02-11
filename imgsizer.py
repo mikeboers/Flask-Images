@@ -129,6 +129,7 @@ class ImgSizer(object):
         quality = int(quality) if quality else 75
         format = req.get.get('format') or req.get.get('f')
         format = format.lower() if format else os.path.splitext(path)[1][1:].lower()
+        format = {'jpg' : 'jpeg'}.get(format, format)
         
         out = None
         cache_path = None
