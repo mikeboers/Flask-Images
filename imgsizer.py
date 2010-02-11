@@ -33,7 +33,7 @@ class ImgSizer(object):
         self.max_age = max_age
     
     def build_url(self, local_path, **kwargs):
-        for key in 'width height quality'.split():
+        for key in 'width height quality format'.split():
             if key in kwargs:
                 kwargs[key[0]] = kwargs[key]
                 del kwargs[key]
@@ -43,6 +43,7 @@ class ImgSizer(object):
             query['path'] = local_path
             query.sign(self.sig_key, add_time=False, add_nonce=False)
             query.remove('path')
+        
         return local_path + ('?' + str(query) if kwargs else '')
         
     def find_img(self, local_path):
@@ -58,7 +59,10 @@ class ImgSizer(object):
 
         width = min(width, orig_width) if width else None
         height = min(height, orig_height) if height else None
-
+        
+        if not img.mode.lower().startswith('rgb'):
+            img = img.convert('RGBA')
+        
         if width and height:
     
             fit, crop = sorted([
@@ -123,15 +127,17 @@ class ImgSizer(object):
         height = int(height) if height else None
         quality = req.get.get('quality') or req.get.get('q')
         quality = int(quality) if quality else 75
+        format = req.get.get('format') or req.get.get('f')
+        format = format.lower() if format else os.path.splitext(path)[1][1:].lower()
         
         out = None
         cache_path = None
         
         if self.cache_root:
             cache_key = hashlib.md5(repr((
-                path, mode, width, height, quality
+                path, mode, width, height, quality, format
             ))).hexdigest()
-            cache_path = os.path.join(self.cache_root, cache_key + '.jpg')
+            cache_path = os.path.join(self.cache_root, cache_key + '.' + format)
             cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
             if cache_mtime is not None and cache_mtime >= raw_mtime:
                 # We have it cached here!
@@ -143,7 +149,7 @@ class ImgSizer(object):
             img = self.resize(img, width=width, height=height, mode=mode)
     
             out_file = StringIO()
-            img.save(out_file, "JPEG", quality=quality)
+            img.save(out_file, format, quality=quality)
             out = out_file.getvalue()
             
             if cache_path:
@@ -160,7 +166,7 @@ class ImgSizer(object):
             res.start('not modified')
             return
     
-        res.headers['content-type'] = 'image/jpeg'
+        res.headers['content-type'] = 'image/%s' % format
         res.start()
         yield out
 
