@@ -24,7 +24,8 @@ class ImgSizer(object):
     
     MODE_FIT = 'fit'
     MODE_CROP = 'crop'
-    MODES = (MODE_FIT, MODE_CROP)
+    MODE_PAD = 'pad'
+    MODES = (MODE_FIT, MODE_CROP, MODE_PAD)
     
     def __init__(self, path, cache_root=None, sig_key=None, max_age=3600):
         self.path = [os.path.abspath(x) for x in path]
@@ -33,7 +34,7 @@ class ImgSizer(object):
         self.max_age = max_age
     
     def build_url(self, local_path, **kwargs):
-        for key in 'width height quality format'.split():
+        for key in 'width height quality format padding'.split():
             if key in kwargs:
                 kwargs[key[0]] = kwargs[key]
                 del kwargs[key]
@@ -53,7 +54,7 @@ class ImgSizer(object):
             if os.path.exists(path):
                 return path
     
-    def resize(self, img, width=None, height=None, mode=None):
+    def resize(self, img, width=None, height=None, mode=None, background=None):
         
         orig_width, orig_height = img.size
 
@@ -70,8 +71,17 @@ class ImgSizer(object):
                 (orig_width * height // orig_height, height)
             ])
     
-            if mode == self.MODE_FIT:
+            if mode == self.MODE_FIT or mode == self.MODE_PAD:
                 img = img.resize(fit, image.ANTIALIAS)
+                
+                if mode == self.MODE_PAD:
+                    pad_color = {'white': (255, 255, 255)}.get(str(background).lower(), 0)
+                    back = image.new('RGBA', (width, height), pad_color)
+                    back.paste(img, (
+                        (width  - fit[0]) // 2,
+                        (height - fit[1]) // 2
+                    ))
+                    img = back
             
             elif mode == self.MODE_CROP:
                 dx = (crop[0] - width) // 2
@@ -120,7 +130,8 @@ class ImgSizer(object):
             res.start('not modified')
             return
         
-        mode = req.get.get('mode')
+        mode = req.get.get('mode') or req.get.get('m')
+        background = req.get.get('background') or req.get.get('b')
         width = req.get.get('width') or req.get.get('w')
         width = int(width) if width else None
         height = req.get.get('height') or req.get.get('h')
@@ -137,7 +148,7 @@ class ImgSizer(object):
         
         if self.cache_root:
             cache_key = hashlib.md5(repr((
-                path, mode, width, height, quality, format
+                path, mode, width, height, quality, format, background
             ))).hexdigest()
             cache_path = os.path.join(self.cache_root, cache_key + '.' + format)
             cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
@@ -148,7 +159,7 @@ class ImgSizer(object):
         if not out:
             
             img = image.open(path)
-            img = self.resize(img, width=width, height=height, mode=mode)
+            img = self.resize(img, width=width, height=height, mode=mode, background=background)
     
             out_file = StringIO()
             img.save(out_file, format, quality=quality)
