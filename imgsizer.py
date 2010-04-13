@@ -128,7 +128,7 @@ class ImgSizer(object):
         res.last_modified = mtime
         if req.if_modified_since and req.if_modified_since >= mtime:
             res.start('not modified')
-            return
+            return ['not modified']
         
         mode = req.get.get('mode') or req.get.get('m')
         background = req.get.get('background') or req.get.get('b')
@@ -177,11 +177,11 @@ class ImgSizer(object):
         res.etag = etag
         if req.etag and req.etag == etag:
             res.start('not modified')
-            return
+            return ['not modified']
     
         res.headers['content-type'] = 'image/%s' % format
         res.start()
-        yield out
+        return [out]
 
 
 
