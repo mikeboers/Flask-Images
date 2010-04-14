@@ -11,7 +11,7 @@ import hashlib
 import sys
 
 from .uri.query import Query
-from .http.status import HttpNotFound
+from .http.status import HTTPNotFound
 from .request import as_request
 
 
@@ -111,14 +111,14 @@ class ImgSizer(object):
         
         path = self.find_img(req.unrouted)
         if not path:
-            raise HttpNotFound()
+            raise HTTPNotFound()
         
         if self.sig_key:
             query = Query(req.get)
             query['path'] = req.unrouted
             if not query.verify(self.sig_key):
                 log.warning('signature not accepted')
-                raise HttpNotFound()
+                raise HTTPNotFound()
         
         if self.max_age:
             res.max_age = self.max_age
