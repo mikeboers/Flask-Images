@@ -185,6 +185,31 @@ class ImgSizer(object):
 
 
 
+class ImgSizerAppMixin(object):
+    
+    base_config = dict(
+        imgsizer_path=[],
+        imgsizer_maxage=3600,
+        imgsizer_cache_dir='/tmp',
+        imgsizer_url_base='__imgsizer',
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super(ImgSizerAppMixin, self).__init__(*args, **kwargs)
+        
+        self.imgsizer = ImgSizer(
+            self.config.imgsizer_path,
+            self.config.imgsizer_cache,
+            self.config.private_key_material or os.urandom(32),
+            self.config.imgsizer_maxage,
+        )
+        self.route('/' + self.config.imgsizer_url_base, self.imgsizer)
+        self.view_globals['auto_img_src'] = self.auto_img_src
+    
+    def auto_img_src(self, *args, **kwargs):
+        return '/' + self.config.imgsizer_url_base + self.imgsizer.build_url(*args, **kwargs)
+
+
 if __name__ == '__main__':
     #
     __app__ = ImgSizer(
