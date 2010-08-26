@@ -114,7 +114,7 @@ class ImgSizer(object):
             raise HTTPNotFound()
         
         if self.sig_key:
-            query = Query(req.get)
+            query = Query(req.query)
             query['path'] = req.unrouted
             if not query.verify(self.sig_key):
                 log.warning('signature not accepted')
@@ -130,15 +130,15 @@ class ImgSizer(object):
             res.start('not modified')
             return ['not modified']
         
-        mode = req.get.get('mode') or req.get.get('m')
-        background = req.get.get('background') or req.get.get('b')
-        width = req.get.get('width') or req.get.get('w')
+        mode = req.query.get('mode') or req.query.get('m')
+        background = req.query.get('background') or req.query.get('b')
+        width = req.query.get('width') or req.query.get('w')
         width = int(width) if width else None
-        height = req.get.get('height') or req.get.get('h')
+        height = req.query.get('height') or req.query.get('h')
         height = int(height) if height else None
-        quality = req.get.get('quality') or req.get.get('q')
+        quality = req.query.get('quality') or req.query.get('q')
         quality = int(quality) if quality else 75
-        format = req.get.get('format') or req.get.get('f')
+        format = req.query.get('format') or req.query.get('f')
         format = format or os.path.splitext(path)[1][1:].lower()
         format = {'jpg' : 'jpeg'}.get(format, format) or 'jpeg'
         format = format.lower()
