@@ -187,12 +187,12 @@ class ImgSizer(object):
 
 class ImgSizerAppMixin(object):
     
-    base_config = dict(
-        imgsizer_path=[],
-        imgsizer_maxage=3600,
-        imgsizer_cache_dir='/tmp',
-        imgsizer_url_base='__imgsizer',
-    )
+    def setup_config(self, config):
+        super(ImgSizerAppMixin, self).setup_config(config)
+        config.setdefault('imgsizer_path', [])
+        config.setdefault('imgsizer_maxage', 3600)
+        config.setdefault('imgsizer_cache_dir', '/tmp')
+        config.setdefault('imgsizer_url_base', '__imgsizer')
     
     def __init__(self, *args, **kwargs):
         super(ImgSizerAppMixin, self).__init__(*args, **kwargs)
