@@ -202,7 +202,7 @@ class ImgSizerAppMixin(object):
         self.imgsizer = ImgSizer(
             self.config.imgsizer_path,
             self.config.imgsizer_cache,
-            self.config.private_key_material or os.urandom(32),
+            self.config.private_key or os.urandom(32),
             self.config.imgsizer_maxage,
         )
         self.route('/' + self.config.imgsizer_url_base, self.imgsizer)
