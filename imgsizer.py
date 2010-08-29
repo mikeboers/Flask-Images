@@ -11,8 +11,8 @@ import hashlib
 import sys
 
 from .uri.query import Query
-from .http.status import HTTPNotFound
 from .request import as_request
+from . import status
 
 
 log = logging.getLogger(__name__)
@@ -108,17 +108,18 @@ class ImgSizer(object):
         
         # log.debug(req.unrouted)
         # log.debug(repr(self.path))
+        # log.debug('start: ' + req.path)
         
         path = self.find_img(req.unrouted)
         if not path:
-            raise HTTPNotFound()
+            raise status.NotFound()
         
         if self.sig_key:
             query = Query(req.query)
             query['path'] = req.unrouted
             if not query.verify(self.sig_key):
                 log.warning('signature not accepted')
-                raise HTTPNotFound()
+                raise status.NotFound()
         
         if self.max_age:
             res.max_age = self.max_age
@@ -126,9 +127,13 @@ class ImgSizer(object):
         raw_mtime = os.path.getmtime(path)
         mtime = datetime.datetime.utcfromtimestamp(raw_mtime)
         res.last_modified = mtime
+        # log.debug('last_modified: %r' % mtime)
+        # log.debug('if_modified_since: %r' % req.if_modified_since)
         if req.if_modified_since and req.if_modified_since >= mtime:
-            res.start('not modified')
-            return ['not modified']
+            res.start(status.NotModified.code)
+            return []
+        
+        log.info('Building image for %s' % req.query)
         
         mode = req.query.get('mode') or req.query.get('m')
         background = req.query.get('background') or req.query.get('b')
@@ -176,8 +181,8 @@ class ImgSizer(object):
         etag = hashlib.md5(out).hexdigest()
         res.etag = etag
         if req.etag and req.etag == etag:
-            res.start('not modified')
-            return ['not modified']
+            res.start(status.NotModified.code)
+            return []
     
         res.headers['content-type'] = 'image/%s' % format
         res.start()
