@@ -206,7 +206,7 @@ class ImgSizerAppMixin(object):
         
         self.imgsizer = ImgSizer(
             self.config.imgsizer_path,
-            self.config.imgsizer_cache,
+            self.config.imgsizer_cache_dir,
             self.config.private_key or os.urandom(32),
             self.config.imgsizer_maxage,
         )
