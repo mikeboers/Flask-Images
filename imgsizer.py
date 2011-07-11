@@ -112,14 +112,14 @@ class ImgSizer(object):
         
         path = self.find_img(req.unrouted)
         if not path:
-            raise status.NotFound()
+            return status.NotFound()
         
         if self.sig_key:
             query = Query(req.query)
             query['path'] = req.unrouted
             if not query.verify(self.sig_key):
                 log.warning('signature not accepted')
-                raise status.NotFound()
+                return status.NotFound()
         
         
         raw_mtime = os.path.getmtime(path)
