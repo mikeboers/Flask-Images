@@ -27,23 +27,29 @@ class ImgSizer(object):
     MODE_PAD = 'pad'
     MODES = (MODE_FIT, MODE_CROP, MODE_PAD)
     
-    def __init__(self, path, cache_root=None, sig_key=None, max_age=3600):
+    def __init__(self, path, cache_root, sig_key, maxage):
         self.path = [os.path.abspath(x) for x in path]
         self.cache_root = cache_root
         self.sig_key = sig_key
-        self.max_age = max_age
+        self.maxage = maxage
     
     def build_url(self, local_path, **kwargs):
-        for key in 'width height quality format padding'.split():
+        for key in 'mode width height quality format padding'.split():
             if key in kwargs:
                 kwargs[key[0]] = kwargs[key]
                 del kwargs[key]
         query = Query(kwargs)
+        
+        
+        abs_path = self.find_img(local_path)
+        if abs_path:
+            query['v'] = str(int(os.path.getmtime(abs_path)))
+        
         query.sort()
-        if self.sig_key:
-            query['path'] = local_path
-            query.sign(self.sig_key, add_time=False, add_nonce=False)
-            del query['path']
+        
+        query['path'] = local_path
+        query.sign(self.sig_key, add_time=False, add_nonce=False)
+        del query['path']
         
         return local_path + ('?' + str(query) if kwargs else '')
         
@@ -104,88 +110,67 @@ class ImgSizer(object):
         return img
     
     @Request.application
-    def __call__(self, req):
+    def __call__(self, request):
         
-        # log.debug(req.unrouted)
-        # log.debug(repr(self.path))
-        # log.debug('start: ' + req.path)
-        
-        path = self.find_img(req.unrouted)
+        path = self.find_img(request.unrouted)
         if not path:
             return status.NotFound()
         
-        if self.sig_key:
-            query = Query(req.query)
-            query['path'] = req.unrouted
-            if not query.verify(self.sig_key):
-                log.warning('signature not accepted')
-                return status.NotFound()
-        
+        query = Query(request.query)
+        query['path'] = request.unrouted
+        if not query.verify(self.sig_key):
+            log.warning('signature not accepted')
+            return status.NotFound()
         
         raw_mtime = os.path.getmtime(path)
         mtime = datetime.datetime.utcfromtimestamp(raw_mtime)
         # log.debug('last_modified: %r' % mtime)
-        # log.debug('if_modified_since: %r' % req.if_modified_since)
-        if req.if_modified_since and req.if_modified_since >= mtime:
+        # log.debug('if_modified_since: %r' % request.if_modified_since)
+        if request.if_modified_since and request.if_modified_since >= mtime:
             return status.NotModified()
         
-        log.info('Building image for %s' % req.query)
         
-        mode = req.query.get('mode') or req.query.get('m')
-        background = req.query.get('background') or req.query.get('b')
-        width = req.query.get('width') or req.query.get('w')
+        mode = request.query.get('mode') or request.query.get('m')
+        background = request.query.get('background') or request.query.get('b')
+        width = request.query.get('width') or request.query.get('w')
         width = int(width) if width else None
-        height = req.query.get('height') or req.query.get('h')
+        height = request.query.get('height') or request.query.get('h')
         height = int(height) if height else None
-        quality = req.query.get('quality') or req.query.get('q')
+        quality = request.query.get('quality') or request.query.get('q')
         quality = int(quality) if quality else 75
-        format = req.query.get('format') or req.query.get('f')
+        format = request.query.get('format') or request.query.get('f')
         format = format or os.path.splitext(path)[1][1:].lower()
         format = {'jpg' : 'jpeg'}.get(format, format) or 'jpeg'
         format = format.lower()
         
-        out = None
-        cache_path = None
+        has_version = 'v' in request.query
+                
+        cache_key = hashlib.md5(repr((
+            path, mode, width, height, quality, format, background
+        ))).hexdigest()
+        cache_path = os.path.join(self.cache_root, cache_key + '.' + format)
+        cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
         
-        if self.cache_root:
-            cache_key = hashlib.md5(repr((
-                path, mode, width, height, quality, format, background
-            ))).hexdigest()
-            cache_path = os.path.join(self.cache_root, cache_key + '.' + format)
-            cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
-            if cache_mtime is not None and cache_mtime >= raw_mtime:
-                # We have it cached here!
-                out = open(cache_path, 'rb').read()
-        
-        if not out:
+        if not cache_mtime or cache_mtime < raw_mtime:
+            
+            log.info('resizing %r for %s' % (request.unrouted, request.query))
             
             img = image.open(path)
             img = self.resize(img, width=width, height=height, mode=mode, background=background)
-    
-            out_file = StringIO()
-            img.save(out_file, format, quality=quality)
-            out = out_file.getvalue()
             
-            if cache_path:
-                try:
-                    cache_file = open(cache_path, 'wb')
-                    cache_file.write(out)
-                    cache_file.close()
-                except Exception as e:
-                    log.exception('error while saving image to cache')
-    
-        etag = hashlib.md5(out).hexdigest()
-        if req.etag and req.etag == etag:
-            return status.NotModified()
+            try:
+                cache_file = open(cache_path, 'wb')
+                img.save(out_file, format, quality=quality)
+                cache_file.close()
+            except Exception as e:
+                log.exception('error while saving image to cache')
+            
+        response = Response()
+        response.sendfile = cache_path
+        response.mimetype = 'image/%s' % format # After sendfile.
+        response.cache_control.max_age = 31536000 if has_version else self.max_age
         
-        res = Response(out,
-            etag=etag,
-            last_modified=mtime,
-            mimetype='image/%s' % format,
-        )
-        if self.max_age:
-            res.cache_control.max_age = self.max_age
-        return res
+        return response
 
 
 
@@ -197,7 +182,7 @@ class ImgSizerAppMixin(object):
             imgsizer_path=[],
             imgsizer_maxage=3600,
             imgsizer_cache_dir='/tmp',
-            imgsizer_url_base='__imgsizer',
+            imgsizer_url_base='__img',
         )
     
     def __init__(self, *args, **kwargs):
