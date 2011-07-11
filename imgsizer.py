@@ -11,7 +11,7 @@ import hashlib
 import sys
 
 from .uri.query import Query
-from .request import as_request
+from .request import Request, Response
 from . import status
 
 
@@ -103,8 +103,8 @@ class ImgSizer(object):
         
         return img
     
-    @as_request
-    def __call__(self, req, res):
+    @Request.application
+    def __call__(self, req):
         
         # log.debug(req.unrouted)
         # log.debug(repr(self.path))
@@ -121,17 +121,13 @@ class ImgSizer(object):
                 log.warning('signature not accepted')
                 raise status.NotFound()
         
-        if self.max_age:
-            res.max_age = self.max_age
         
         raw_mtime = os.path.getmtime(path)
         mtime = datetime.datetime.utcfromtimestamp(raw_mtime)
-        res.last_modified = mtime
         # log.debug('last_modified: %r' % mtime)
         # log.debug('if_modified_since: %r' % req.if_modified_since)
         if req.if_modified_since and req.if_modified_since >= mtime:
-            res.start(status.NotModified.code)
-            return []
+            return status.NotModified()
         
         log.info('Building image for %s' % req.query)
         
@@ -179,14 +175,17 @@ class ImgSizer(object):
                     log.exception('error while saving image to cache')
     
         etag = hashlib.md5(out).hexdigest()
-        res.etag = etag
         if req.etag and req.etag == etag:
-            res.start(status.NotModified.code)
-            return []
-    
-        res.headers['content-type'] = 'image/%s' % format
-        res.start()
-        return [out]
+            return status.NotModified()
+        
+        res = Response(out,
+            etag=etag,
+            last_modified=mtime,
+            mimetype='image/%s' % format,
+        )
+        if self.max_age:
+            res.cache_control.max_age = self.max_age
+        return res
 
 
 
