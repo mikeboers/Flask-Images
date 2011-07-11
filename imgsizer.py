@@ -9,6 +9,8 @@ from cStringIO import StringIO
 import datetime
 import hashlib
 import sys
+import base64
+import struct
 
 from .uri.query import Query
 from .request import Request, Response
@@ -20,6 +22,9 @@ log = logging.getLogger(__name__)
 # TODO:
 # - take max_age from config
 
+def encode_int(value):
+    return base64.urlsafe_b64encode(struct.pack('>I', int(value))).rstrip('=').lstrip('A')
+    
 class ImgSizer(object):
     
     MODE_FIT = 'fit'
@@ -34,7 +39,7 @@ class ImgSizer(object):
         self.maxage = maxage
     
     def build_url(self, local_path, **kwargs):
-        for key in 'mode width height quality format padding'.split():
+        for key in 'background mode width height quality format padding'.split():
             if key in kwargs:
                 kwargs[key[0]] = kwargs[key]
                 del kwargs[key]
@@ -43,7 +48,7 @@ class ImgSizer(object):
         
         abs_path = self.find_img(local_path)
         if abs_path:
-            query['v'] = str(int(os.path.getmtime(abs_path)))
+            query['v'] = encode_int(int(os.path.getmtime(abs_path)))
         
         query.sort()
         
@@ -130,19 +135,16 @@ class ImgSizer(object):
             return status.NotModified()
         
         
-        mode = request.query.get('mode') or request.query.get('m')
-        background = request.query.get('background') or request.query.get('b')
-        width = request.query.get('width') or request.query.get('w')
+        mode = request.query.get('m')
+        background = request.query.get('b')
+        width = request.query.get('w')
         width = int(width) if width else None
-        height = request.query.get('height') or request.query.get('h')
+        height = request.query.get('h')
         height = int(height) if height else None
-        quality = request.query.get('quality') or request.query.get('q')
+        quality = request.query.get('q')
         quality = int(quality) if quality else 75
-        format = request.query.get('format') or request.query.get('f')
-        format = format or os.path.splitext(path)[1][1:].lower()
-        format = {'jpg' : 'jpeg'}.get(format, format) or 'jpeg'
-        format = format.lower()
-        
+        format = request.query.get('f', '').lower() or os.path.splitext(path)[1][1:] or 'jpeg'
+        format = {'jpg' : 'jpeg'}.get(format, format)
         has_version = 'v' in request.query
                 
         cache_key = hashlib.md5(repr((
@@ -160,7 +162,7 @@ class ImgSizer(object):
             
             try:
                 cache_file = open(cache_path, 'wb')
-                img.save(out_file, format, quality=quality)
+                img.save(cache_file, format, quality=quality)
                 cache_file.close()
             except Exception as e:
                 log.exception('error while saving image to cache')
