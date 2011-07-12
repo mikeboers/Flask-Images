@@ -166,13 +166,11 @@ class ImgSizer(object):
                 cache_file.close()
             except Exception as e:
                 log.exception('error while saving image to cache')
-            
-        response = Response()
-        response.sendfile = cache_path
-        response.mimetype = 'image/%s' % format # After sendfile.
-        response.cache_control.max_age = 31536000 if has_version else self.max_age
         
-        return response
+        return Response().send_file(cache_path,
+            mimetype='image/%s' % format,
+            cache_max_age=31536000 if has_version else self.max_age,
+        )
 
 
 
