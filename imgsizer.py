@@ -117,12 +117,12 @@ class ImgSizer(object):
     @Request.application
     def __call__(self, request):
         
-        path = self.find_img(request.unrouted)
+        path = self.find_img(request.path_info)
         if not path:
             return status.NotFound()
         
         query = Query(request.query)
-        query['path'] = request.unrouted
+        query['path'] = request.path_info
         if not query.verify(self.sig_key):
             log.warning('signature not accepted')
             return status.NotFound()
@@ -155,7 +155,7 @@ class ImgSizer(object):
         
         if not cache_mtime or cache_mtime < raw_mtime:
             
-            log.info('resizing %r for %s' % (request.unrouted, request.query))
+            log.info('resizing %r for %s' % (request.path_info, request.query))
             
             img = image.open(path)
             img = self.resize(img, width=width, height=height, mode=mode, background=background)
