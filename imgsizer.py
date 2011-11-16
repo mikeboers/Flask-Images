@@ -147,7 +147,7 @@ class ImgSizer(object):
             )
             if not os.path.exists(path):
                 log.info('downloading %s' % remote_url)
-                tmp_path = path + '.tmp' + str(id(remote_url))
+                tmp_path = path + '.tmp-' + str(os.getpid())
                 fh = open(tmp_path, 'wb')
                 fh.write(urlopen(remote_url).read())
                 fh.close()
