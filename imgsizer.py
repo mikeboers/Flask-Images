@@ -11,6 +11,9 @@ import hashlib
 import sys
 import base64
 import struct
+from urlparse import urlparse
+from urllib2 import urlopen
+from subprocess import call
 
 from .uri.query import Query
 from .request import Request, Response
@@ -32,11 +35,11 @@ class ImgSizer(object):
     MODE_PAD = 'pad'
     MODES = (MODE_FIT, MODE_CROP, MODE_PAD)
     
-    def __init__(self, path, cache_root, sig_key, maxage):
+    def __init__(self, path, cache_root, sig_key, max_age):
         self.path = [os.path.abspath(x) for x in path]
         self.cache_root = cache_root
         self.sig_key = sig_key
-        self.maxage = maxage
+        self.max_age = max_age
     
     def build_url(self, local_path, **kwargs):
         for key in 'background mode width height quality format padding'.split():
@@ -46,9 +49,17 @@ class ImgSizer(object):
         query = Query(kwargs)
         
         
-        abs_path = self.find_img(local_path)
-        if abs_path:
-            query['v'] = encode_int(int(os.path.getmtime(abs_path)))
+        # Remote URLs are encoded into the query.
+        parsed = urlparse(local_path)
+        if parsed.netloc:
+            query['u'] = local_path
+            local_path = '/remote'
+
+        # Local ones are not.
+        else:
+            abs_path = self.find_img(local_path)
+            if abs_path:
+                query['v'] = encode_int(int(os.path.getmtime(abs_path)))
         
         query.sort()
         
@@ -116,8 +127,8 @@ class ImgSizer(object):
     
     @Request.application
     def __call__(self, request):
-        
-        path = self.find_img(request.path_info)
+
+        path = request.path_info
         if not path:
             return status.NotFound()
         
@@ -127,6 +138,25 @@ class ImgSizer(object):
             log.warning('signature not accepted')
             return status.NotFound()
         
+        remote_url = query.get('u')
+        if remote_url:
+            # Download the remote file.
+            path = os.path.join(
+                self.cache_root,
+                hashlib.md5(remote_url).hexdigest() + os.path.splitext(remote_url)[1]
+            )
+            if not os.path.exists(path):
+                log.info('downloading %s' % remote_url)
+                tmp_path = path + '.tmp' + str(id(remote_url))
+                fh = open(tmp_path, 'wb')
+                fh.write(urlopen(remote_url).read())
+                fh.close()
+                call(['mv', tmp_path, path])
+        else:
+            path = self.find_img(path)
+            if not path:
+                raise status.NotFound()
+
         raw_mtime = os.path.getmtime(path)
         mtime = datetime.datetime.utcfromtimestamp(raw_mtime)
         # log.debug('last_modified: %r' % mtime)
@@ -180,7 +210,7 @@ class ImgSizerAppMixin(object):
         super(ImgSizerAppMixin, self).setup_config()
         self.config.setdefaults(
             imgsizer_path=[],
-            imgsizer_maxage=3600,
+            imgsizer_max_age=3600,
             imgsizer_cache_dir='/tmp',
             imgsizer_url_base='__img',
         )
@@ -192,7 +222,7 @@ class ImgSizerAppMixin(object):
             self.config.imgsizer_path,
             self.config.imgsizer_cache_dir,
             self.config.private_key or os.urandom(32),
-            self.config.imgsizer_maxage,
+            self.config.imgsizer_max_age,
         )
         self.route('/' + self.config.imgsizer_url_base, self.imgsizer)
         self.view_globals['auto_img_src'] = self.auto_img_src
