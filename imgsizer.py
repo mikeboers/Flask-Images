@@ -15,10 +15,9 @@ from urlparse import urlparse
 from urllib2 import urlopen
 from subprocess import call
 
-from .uri.query import Query
 from .request import Request, Response
 from . import status
-
+from . import sign
 
 log = logging.getLogger(__name__)
 
@@ -45,29 +44,23 @@ class ImgSizer(object):
         for key in 'background mode width height quality format padding'.split():
             if key in kwargs:
                 kwargs[key[0]] = kwargs[key]
-                del kwargs[key]
-        query = Query(kwargs)
-        
+                del kwargs[key]        
         
         # Remote URLs are encoded into the query.
         parsed = urlparse(local_path)
         if parsed.netloc:
-            query['u'] = local_path
+            kwargs['u'] = local_path
             local_path = '/remote'
 
         # Local ones are not.
         else:
             abs_path = self.find_img(local_path)
             if abs_path:
-                query['v'] = encode_int(int(os.path.getmtime(abs_path)))
+                kwargs['v'] = encode_int(int(os.path.getmtime(abs_path)))
         
-        query.sort()
+        sig = sign.sign(self.sig_key, local_path, add_time=False, nonce=False, sig=kwargs)
         
-        query['path'] = local_path
-        query.sign(self.sig_key, add_time=False, add_nonce=False)
-        del query['path']
-        
-        return local_path + ('?' + str(query) if kwargs else '')
+        return local_path + '?' + sign.encode_query(sig)
         
     def find_img(self, local_path):
         local_path = local_path.lstrip('/')
@@ -132,9 +125,9 @@ class ImgSizer(object):
         if not path:
             return status.NotFound()
         
-        query = Query(request.query)
-        query['path'] = request.path_info
-        if not query.verify(self.sig_key):
+        query = dict(request.query.iteritems())
+        
+        if not sign.verify(self.sig_key, path, query):
             log.warning('signature not accepted')
             return status.NotFound()
         
