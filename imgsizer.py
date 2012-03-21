@@ -58,9 +58,8 @@ class ImgSizer(object):
             if abs_path:
                 kwargs['v'] = encode_int(int(os.path.getmtime(abs_path)))
         
-        sig = sign.sign(self.sig_key, local_path, add_time=False, nonce=False, sig=kwargs)
-        
-        return local_path + '?' + sign.encode_query(sig)
+        query = sign.sign_query(self.sig_key, kwargs, add_time=False, nonce=False, depends_on=dict(path=local_path))
+        return local_path + '?' + sign.encode_query(query)
         
     def find_img(self, local_path):
         local_path = local_path.lstrip('/')
@@ -127,7 +126,7 @@ class ImgSizer(object):
         
         query = dict(request.query.iteritems())
         
-        if not sign.verify(self.sig_key, path, query):
+        if not sign.verify_query(self.sig_key, query, depends_on=dict(path=path)):
             log.warning('signature not accepted')
             return status.NotFound()
         
