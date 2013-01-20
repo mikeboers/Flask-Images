@@ -1,10 +1,8 @@
-
 from __future__ import division
 
 import math
 import os
 import logging
-import Image as image
 from cStringIO import StringIO
 import datetime
 import hashlib
@@ -13,20 +11,21 @@ import base64
 import struct
 from urlparse import urlparse
 from urllib2 import urlopen
+from urllib import urlencode
 from subprocess import call
 
-from .request import Request, Response
-from . import status
-from . import sign
+import Image as image
+
+from flask import request, current_app, send_file, abort
+
 
 log = logging.getLogger(__name__)
 
-# TODO:
-# - take max_age from config
 
 def encode_int(value):
     return base64.urlsafe_b64encode(struct.pack('>I', int(value))).rstrip('=').lstrip('A')
-    
+
+
 class ImgSizer(object):
     
     MODE_FIT = 'fit'
@@ -34,23 +33,44 @@ class ImgSizer(object):
     MODE_PAD = 'pad'
     MODES = (MODE_FIT, MODE_CROP, MODE_PAD)
     
-    def __init__(self, path, cache_root, sig_key, max_age):
-        self.path = [os.path.abspath(x) for x in path]
-        self.cache_root = cache_root
-        self.sig_key = sig_key
-        self.max_age = max_age
+    def __init__(self, app=None):
+        if app is not None:
+            self.init_app(app)
+
+    def init_app(self, app):
+        """
+        Initialize a :class:`~flask.Flask` application
+        for use with this extension. Useful for the factory pattern but
+        not needed if you passed your application to the :class:`ImgSizer`
+        constructor.
+
+        """
+        if not hasattr(app, 'extensions'):
+            app.extensions = {}
+        app.extensions['imgsizer'] = self
+
+        app.config.setdefault('IMGSIZER_URL', '/imgsizer')
+        app.config.setdefault('IMGSIZER_NAME', 'imgsizer')
+        app.config.setdefault('IMGSIZER_PATH', ['assets', 'static'])
+        app.config.setdefault('IMGSIZER_CACHE', '/tmp/imgsizer')
+        app.config.setdefault('IMGSIZER_MAX_AGE', 3600)
+
+        app.add_url_rule(app.config['IMGSIZER_URL'] + '/<path:path>', app.config['IMGSIZER_NAME'], self.handle_request)
+
     
     def build_url(self, local_path, **kwargs):
+
+        local_path = local_path.strip('/')
+
         for key in 'background mode width height quality format padding'.split():
             if key in kwargs:
-                kwargs[key[0]] = kwargs[key]
-                del kwargs[key]        
+                kwargs[key[0]] = kwargs.pop(key)
         
         # Remote URLs are encoded into the query.
         parsed = urlparse(local_path)
         if parsed.netloc:
             kwargs['u'] = local_path
-            local_path = '/remote'
+            local_path = 'remote'
 
         # Local ones are not.
         else:
@@ -58,13 +78,12 @@ class ImgSizer(object):
             if abs_path:
                 kwargs['v'] = encode_int(int(os.path.getmtime(abs_path)))
         
-        query = sign.sign_query(self.sig_key, kwargs, add_time=False, nonce=False, depends_on=dict(path=local_path))
-        return local_path + '?' + sign.encode_query(query)
+        # TODO: Use itsdangerous with local_path as salt
+        return current_app.config['IMGSIZER_URL'] + '/' + local_path + '?' + urlencode(kwargs)
         
     def find_img(self, local_path):
-        local_path = local_path.lstrip('/')
-        for path_base in self.path:
-            path = os.path.join(path_base, local_path)
+        for path_base in current_app.config['IMGSIZER_PATH']:
+            path = os.path.join(current_app.root_path, path_base, local_path)
             if os.path.exists(path):
                 return path
     
@@ -117,18 +136,12 @@ class ImgSizer(object):
         
         return img
     
-    @Request.application
-    def __call__(self, request):
 
-        path = request.path_info
-        if not path:
-            return status.NotFound()
+    def handle_request(self, path):
+
+        query = dict(request.args.iteritems())
         
-        query = dict(request.query.iteritems())
-        
-        if not sign.verify_query(self.sig_key, query, depends_on=dict(path=path)):
-            log.warning('signature not accepted')
-            return status.NotFound()
+        # TODO: verify the signature.
         
         remote_url = query.get('u')
         if remote_url:
@@ -147,86 +160,60 @@ class ImgSizer(object):
         else:
             path = self.find_img(path)
             if not path:
-                raise status.NotFound()
+                abort(404) # Not found.
 
         raw_mtime = os.path.getmtime(path)
         mtime = datetime.datetime.utcfromtimestamp(raw_mtime)
         # log.debug('last_modified: %r' % mtime)
         # log.debug('if_modified_since: %r' % request.if_modified_since)
         if request.if_modified_since and request.if_modified_since >= mtime:
-            return status.NotModified()
+            return abort(304) # Not Modified.
         
         
-        mode = request.query.get('m')
-        background = request.query.get('b')
-        width = request.query.get('w')
+        mode = query.get('m')
+        background = query.get('b')
+        width = query.get('w')
         width = int(width) if width else None
-        height = request.query.get('h')
+        height = query.get('h')
         height = int(height) if height else None
-        quality = request.query.get('q')
+        quality = query.get('q')
         quality = int(quality) if quality else 75
-        format = request.query.get('f', '').lower() or os.path.splitext(path)[1][1:] or 'jpeg'
+        format = query.get('f', '').lower() or os.path.splitext(path)[1][1:] or 'jpeg'
         format = {'jpg' : 'jpeg'}.get(format, format)
-        has_version = 'v' in request.query
+        has_version = 'v' in query
                 
         cache_key = hashlib.md5(repr((
             path, mode, width, height, quality, format, background
         ))).hexdigest()
-        cache_path = os.path.join(self.cache_root, cache_key + '.' + format)
+
+        cache_dir = os.path.join(current_app.config['IMGSIZER_CACHE'], cache_key[:2])
+        cache_path = os.path.join(cache_dir, cache_key + '.' + format)
+
         cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
         
         if not cache_mtime or cache_mtime < raw_mtime:
             
-            log.info('resizing %r for %s' % (request.path_info, request.query))
+            log.info('resizing %r for %s' % (path, query))
             
             img = image.open(path)
             img = self.resize(img, width=width, height=height, mode=mode, background=background)
             
             try:
-                cache_file = open(cache_path, 'wb')
-                img.save(cache_file, format, quality=quality)
-                cache_file.close()
-            except Exception as e:
-                log.exception('error while saving image to cache')
+                os.makedirs(cache_dir)
+            except OSError:
+                pass
+
+            cache_file = open(cache_path, 'wb')
+            img.save(cache_file, format, quality=quality)
+            cache_file.close()
         
-        return Response().send_file(cache_path,
+        return send_file(cache_path,
             mimetype='image/%s' % format,
-            cache_max_age=31536000 if has_version else self.max_age,
+            cache_timeout=31536000 if has_version else self.max_age,
         )
 
 
-
-class ImgSizerAppMixin(object):
-    
-    def setup_config(self):
-        super(ImgSizerAppMixin, self).setup_config()
-        self.config.setdefaults(
-            imgsizer_path=[],
-            imgsizer_max_age=3600,
-            imgsizer_cache_dir='/tmp',
-            imgsizer_url_base='__img',
-        )
-    
-    def __init__(self, *args, **kwargs):
-        super(ImgSizerAppMixin, self).__init__(*args, **kwargs)
-        
-        self.imgsizer = ImgSizer(
-            self.config.imgsizer_path,
-            self.config.imgsizer_cache_dir,
-            self.config.private_key or os.urandom(32),
-            self.config.imgsizer_max_age,
-        )
-        self.route('/' + self.config.imgsizer_url_base, self.imgsizer)
-        self.view_globals['auto_img_src'] = self.auto_img_src
-    
-    def auto_img_src(self, *args, **kwargs):
-        return '/' + self.config.imgsizer_url_base + self.imgsizer.build_url(*args, **kwargs)
+def resized_img_src(path, **kw):
+    return current_app.extensions['imgsizer'].build_url(path, **kw)
 
 
-if __name__ == '__main__':
-    #
-    __app__ = ImgSizer(
-        path=[],
-        sig_key='awesome'
-    )
-    print __app__.build_url('/mock/photos/2459172663_35af8640ff.jpg', width=200)
