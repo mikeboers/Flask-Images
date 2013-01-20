@@ -15,8 +15,8 @@ from urllib import urlencode
 from subprocess import call
 
 import Image as image
-
 from flask import request, current_app, send_file, abort
+from itsdangerous import Signer, constant_time_compare
 
 
 log = logging.getLogger(__name__)
@@ -78,8 +78,17 @@ class ImgSizer(object):
             if abs_path:
                 kwargs['v'] = encode_int(int(os.path.getmtime(abs_path)))
         
-        # TODO: Use itsdangerous with local_path as salt
-        return current_app.config['IMGSIZER_URL'] + '/' + local_path + '?' + urlencode(kwargs)
+        # Sign the query.
+        query = urlencode(sorted(kwargs.iteritems()), True)
+        signer = Signer(current_app.secret_key)
+        sig = signer.get_signature('%s?%s' % (local_path, query))
+
+        return '%s/%s?%s&s=%s' % (
+            current_app.config['IMGSIZER_URL'],
+            local_path,
+            query,
+            sig,
+        )
         
     def find_img(self, local_path):
         for path_base in current_app.config['IMGSIZER_PATH']:
@@ -139,9 +148,15 @@ class ImgSizer(object):
 
     def handle_request(self, path):
 
+        # Verify the signature.
         query = dict(request.args.iteritems())
-        
-        # TODO: verify the signature.
+        old_sig = query.pop('s', None)
+        if not old_sig:
+            abort(404)
+        signer = Signer(current_app.secret_key)
+        new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(query.iteritems()), True)))
+        if not constant_time_compare(old_sig, new_sig):
+            abort(404)
         
         remote_url = query.get('u')
         if remote_url:
@@ -167,7 +182,7 @@ class ImgSizer(object):
         # log.debug('last_modified: %r' % mtime)
         # log.debug('if_modified_since: %r' % request.if_modified_since)
         if request.if_modified_since and request.if_modified_since >= mtime:
-            return abort(304) # Not Modified.
+            return '', 304
         
         
         mode = query.get('m')
@@ -209,7 +224,7 @@ class ImgSizer(object):
         
         return send_file(cache_path,
             mimetype='image/%s' % format,
-            cache_timeout=31536000 if has_version else self.max_age,
+            cache_timeout=31536000 if has_version else current_app.config['IMGSIZER_MAX_AGE'],
         )
 
 
