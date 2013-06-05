@@ -56,8 +56,14 @@ class ImgSizer(object):
         app.config.setdefault('IMGSIZER_MAX_AGE', 3600)
 
         app.add_url_rule(app.config['IMGSIZER_URL'] + '/<path:path>', app.config['IMGSIZER_NAME'], self.handle_request)
+        app.context_processor(self._context_processor)
 
-    
+
+    def _context_processor(self):
+        return dict(
+            imgsizer_src=resized_img_src,
+        )
+
     def build_url(self, local_path, **kwargs):
 
         local_path = local_path.strip('/')
@@ -150,7 +156,7 @@ class ImgSizer(object):
 
         # Verify the signature.
         query = dict(request.args.iteritems())
-        old_sig = query.pop('s', None)
+        old_sig = str(query.pop('s', None))
         if not old_sig:
             abort(404)
         signer = Signer(current_app.secret_key)
