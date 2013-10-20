@@ -26,7 +26,7 @@ def encode_int(value):
     return base64.urlsafe_b64encode(struct.pack('>I', int(value))).rstrip('=').lstrip('A')
 
 
-class ImgSizer(object):
+class Images(object):
     
     MODE_FIT = 'fit'
     MODE_CROP = 'crop'
@@ -41,27 +41,29 @@ class ImgSizer(object):
         """
         Initialize a :class:`~flask.Flask` application
         for use with this extension. Useful for the factory pattern but
-        not needed if you passed your application to the :class:`ImgSizer`
+        not needed if you passed your application to the :class:`Images`
         constructor.
 
         """
         if not hasattr(app, 'extensions'):
             app.extensions = {}
-        app.extensions['imgsizer'] = self
+        app.extensions['images'] = self
 
-        app.config.setdefault('IMGSIZER_URL', '/imgsizer')
-        app.config.setdefault('IMGSIZER_NAME', 'imgsizer')
-        app.config.setdefault('IMGSIZER_PATH', ['assets', 'static'])
-        app.config.setdefault('IMGSIZER_CACHE', '/tmp/imgsizer')
-        app.config.setdefault('IMGSIZER_MAX_AGE', 3600)
+        app.config.setdefault('IMAGES_URL', '/imgsizer') # This is historical.
+        app.config.setdefault('IMAGES_NAME', 'images')
+        app.config.setdefault('IMAGES_PATH', ['assets', 'static'])
+        app.config.setdefault('IMAGES_CACHE', '/tmp/imgsizer')
+        app.config.setdefault('IMAGES_MAX_AGE', 3600)
 
-        app.add_url_rule(app.config['IMGSIZER_URL'] + '/<path:path>', app.config['IMGSIZER_NAME'], self.handle_request)
+        app.add_url_rule(app.config['IMAGES_URL'] + '/<path:path>', app.config['IMAGES_NAME'], self.handle_request)
         app.context_processor(self._context_processor)
 
 
     def _context_processor(self):
         return dict(
+            resized_img_src=resized_img_src,
             imgsizer_src=resized_img_src,
+            images_src=resized_img_src,
         )
 
     def build_url(self, local_path, **kwargs):
@@ -90,14 +92,14 @@ class ImgSizer(object):
         sig = signer.get_signature('%s?%s' % (local_path, query))
 
         return '%s/%s?%s&s=%s' % (
-            current_app.config['IMGSIZER_URL'],
+            current_app.config['IMAGES_URL'],
             local_path,
             query,
             sig,
         )
         
     def find_img(self, local_path):
-        for path_base in current_app.config['IMGSIZER_PATH']:
+        for path_base in current_app.config['IMAGES_PATH']:
             path = os.path.join(current_app.root_path, path_base, local_path)
             if os.path.exists(path):
                 return path
@@ -207,7 +209,7 @@ class ImgSizer(object):
             path, mode, width, height, quality, format, background
         ))).hexdigest()
 
-        cache_dir = os.path.join(current_app.config['IMGSIZER_CACHE'], cache_key[:2])
+        cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
         cache_path = os.path.join(cache_dir, cache_key + '.' + format)
 
         cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
@@ -230,11 +232,11 @@ class ImgSizer(object):
         
         return send_file(cache_path,
             mimetype='image/%s' % format,
-            cache_timeout=31536000 if has_version else current_app.config['IMGSIZER_MAX_AGE'],
+            cache_timeout=31536000 if has_version else current_app.config['IMAGES_MAX_AGE'],
         )
 
 
 def resized_img_src(path, **kw):
-    return current_app.extensions['imgsizer'].build_url(path, **kw)
+    return current_app.extensions['images'].build_url(path, **kw)
 
 
