@@ -62,8 +62,11 @@ class Images(object):
     def _context_processor(self):
         return dict(
             resized_img_src=resized_img_src,
+
+            # This function has been renamed many times in its history.
             imgsizer_src=resized_img_src,
             images_src=resized_img_src,
+            auto_img_src=resized_img_src,
         )
 
     def build_url(self, local_path, **kwargs):
