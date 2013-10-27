@@ -1,0 +1,7 @@
+1.0.0
+-----
+
+- First official release!
+- Removed lots of backwards compatibility with my own sites:
+    - restricted default path to ['static'];
+    - removed synonyms for `resized_img_src`.

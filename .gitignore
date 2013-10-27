@@ -1,4 +1,6 @@
 *.pyc
 .DS_Store
 
-/*.egg-info
+*.egg-info
+/dist
+MANIFEST
