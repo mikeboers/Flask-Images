@@ -38,21 +38,14 @@ class Images(object):
             self.init_app(app)
 
     def init_app(self, app):
-        """
-        Initialize a :class:`~flask.Flask` application
-        for use with this extension. Useful for the factory pattern but
-        not needed if you passed your application to the :class:`Images`
-        constructor.
-
-        """
         if not hasattr(app, 'extensions'):
             app.extensions = {}
         app.extensions['images'] = self
 
         app.config.setdefault('IMAGES_URL', '/imgsizer') # This is historical.
         app.config.setdefault('IMAGES_NAME', 'images')
-        app.config.setdefault('IMAGES_PATH', ['assets', 'static'])
-        app.config.setdefault('IMAGES_CACHE', '/tmp/imgsizer')
+        app.config.setdefault('IMAGES_PATH', ['static'])
+        app.config.setdefault('IMAGES_CACHE', '/tmp/flask-images')
         app.config.setdefault('IMAGES_MAX_AGE', 3600)
 
         app.add_url_rule(app.config['IMAGES_URL'] + '/<path:path>', app.config['IMAGES_NAME'], self.handle_request)
@@ -62,11 +55,6 @@ class Images(object):
     def _context_processor(self):
         return dict(
             resized_img_src=resized_img_src,
-
-            # This function has been renamed many times in its history.
-            imgsizer_src=resized_img_src,
-            images_src=resized_img_src,
-            auto_img_src=resized_img_src,
         )
 
     def build_url(self, local_path, **kwargs):
