@@ -1,9 +1,8 @@
-
 from distutils.core import setup
 
 setup(
     name='Flask-Images',
-    version='0.1.1',
+    version='1.0.0',
     description='Dynamic image resizing for Flask.',
     url='http://github.com/mikeboers/Flask-Images',
         
@@ -11,7 +10,10 @@ setup(
     author_email='flask_imgsizer@mikeboers.com',
     license='BSD-3',
     
+    py_modules=['flask_images'],
+
     install_requires='''
+        Flask
         PIL
     ''',
     
