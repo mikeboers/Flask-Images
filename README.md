@@ -53,3 +53,22 @@ Configure Flask-Images via the following keys in the Flask config:
 - `IMAGES_CACHE`: Where to store resized images; defaults to `'/tmp/flask-images'`.
 - `IMAGES_MAX_AGE`: How long to tell the browser to cache missing results; defaults to `3600`. Usually, we will set a max age of one year, and cache bust via the modification time of the source image.
 
+Usage
+------
+
+Init it i your app
+
+```python
+from flask import Flask
+from flask.ext.images import Images
+
+app = Flask(__name__)
+Images(app)
+```
+
+now use in your templates.
+
+~~~
+<img src="{{resized_img_src('logo.png', width=100)}}" />
+<img src="{{resized_img_src('photo.jpeg', width=400, height=300, mode='crop', quality=95)}}" />
+~~~
