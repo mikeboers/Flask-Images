@@ -50,7 +50,13 @@ class Images(object):
 
         app.add_url_rule(app.config['IMAGES_URL'] + '/<path:path>', app.config['IMAGES_NAME'], self.handle_request)
         app.context_processor(self._context_processor)
+        app.url_build_error_handlers.append(self.build_error_handler)
 
+    def build_error_handler(self, error, endpoint, values):
+        if endpoint == current_app.config['IMAGES_NAME']:
+            filename = values.pop('filename')
+            return self.build_url(filename, **values)
+        return None
 
     def _context_processor(self):
         return dict(
@@ -78,7 +84,8 @@ class Images(object):
                 kwargs['v'] = encode_int(int(os.path.getmtime(abs_path)))
         
         # Sign the query.
-        query = urlencode(sorted(kwargs.iteritems()), True)
+        public_kwargs = ((k, v) for k, v in kwargs.iteritems() if not k.startswith('_'))
+        query = urlencode(sorted(public_kwargs), True)
         signer = Signer(current_app.secret_key)
         sig = signer.get_signature('%s?%s' % (local_path, query))
 
