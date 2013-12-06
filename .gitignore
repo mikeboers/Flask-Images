@@ -4,3 +4,5 @@
 *.egg-info
 /dist
 MANIFEST
+
+/venv
