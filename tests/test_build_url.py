@@ -1,4 +1,4 @@
-from urlparse import urlsplit, parse_qs
+from urlparse import urlsplit, parse_qsl
 
 from flask import Flask, url_for
 from flask.ext.testing import TestCase
@@ -15,23 +15,34 @@ class TestUrlBuild(TestCase):
         self.images = Images(app)
         return app
 
-    def setUp(self):
-        self.url = url_for('images', filename='cc.png', width=5, mode='crop')
-        self.parsed_url = urlsplit(self.url)
-        self.qs = parse_qs(self.parsed_url.query)
+    def test_default_mode(self):
 
-    def test_url_path(self):
-        self.assertEqual('/imgsizer/cc.png', self.parsed_url.path)
+        url = url_for('images', filename='cc.png', width=5, mode='crop')
 
-    def test_qs_mode(self):
-        self.assertEqual(['crop'], self.qs['m'])
+        parsed_url = urlsplit(url)
+        query_args = dict(parse_qsl(parsed_url.query))
 
-    def test_qs_width(self):
-        self.assertEqual(['5'], self.qs['w'])
+        self.assertEqual('/imgsizer/cc.png', parsed_url.path)
+        self.assertEqual('crop', query_args['m'])
+        self.assertEqual('5', query_args['w'])
+        self.assertIn('s', query_args)
 
-    def test_qs_contains_secret(self):
-        self.assertIn('s', self.qs)
-
-    def test_response(self):
-        response = self.client.get(self.url)
+        response = self.client.get(url)
         self.assert200(response)
+
+    def test_explicit_modes(self):
+
+        for mode in 'crop', 'fit', 'pad', 'reshape':
+
+            url = url_for('images.%s' % mode, filename='cc.png', width=5)
+            parsed_url = urlsplit(url)
+            query_args = dict(parse_qsl(parsed_url.query))
+
+            self.assertEqual('/imgsizer/cc.png', parsed_url.path)
+            self.assertEqual(mode, query_args['m'])
+            self.assertEqual('5', query_args['w'])
+            self.assertIn('s', query_args)
+
+    def test_too_many_modes(self):
+        self.assertRaises(TypeError, url_for, 'images.crop', filename='cc.png', mode='reshape')
+

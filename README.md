@@ -7,11 +7,16 @@ Dynamic image resizing for Flask.
 
 This extension adds a `resized_img_src` function to the template context, which creates a URL to dynamically resize an image. This function takes either a path to a local image (either absolute, or relative to the `IMAGES_PATH`) or an URL to a remote image, and returns a URL that will serve a resized version on demand.
 
+Alternatively, this responds to `url_for('images', filename='...', **kw)` to ease transition from Flask's static files.
+
 For example:
 
 ~~~
 <img src="{{resized_img_src('logo.png', width=100)}}" />
 <img src="{{resized_img_src('photo.jpeg', width=400, height=300, mode='crop', quality=95)}}" />
+OR
+<img src="{{url_for('images', filename='logo.png', width=100)}}" />
+<img src="{{url_for('images.crop', filename='photo.jpeg', width=400, height=300, quality=95)}}" />
 ~~~
 
 Specify behaviour with keyword arguments:

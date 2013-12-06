@@ -1,18 +1,19 @@
 from __future__ import division
 
-import math
-import os
-import logging
 from cStringIO import StringIO
+from subprocess import call
+from urllib import urlencode
+from urllib2 import urlopen
+from urlparse import urlparse
+import base64
 import datetime
 import hashlib
-import sys
-import base64
+import logging
+import math
+import os
+import re
 import struct
-from urlparse import urlparse
-from urllib2 import urlopen
-from urllib import urlencode
-from subprocess import call
+import sys
 
 from PIL import Image as image
 from flask import request, current_app, send_file, abort
@@ -31,7 +32,8 @@ class Images(object):
     MODE_FIT = 'fit'
     MODE_CROP = 'crop'
     MODE_PAD = 'pad'
-    MODES = (MODE_FIT, MODE_CROP, MODE_PAD)
+    MODE_RESHAPE = 'reshape'
+    MODES = (MODE_FIT, MODE_CROP, MODE_PAD, MODE_RESHAPE)
     
     def __init__(self, app=None):
         if app is not None:
@@ -53,9 +55,24 @@ class Images(object):
         app.url_build_error_handlers.append(self.build_error_handler)
 
     def build_error_handler(self, error, endpoint, values):
-        if endpoint == current_app.config['IMAGES_NAME']:
+
+        # See if we were asked for "images" or "images.<mode>".
+        m = re.match(r'^%s(?:\.(%s))?$' % (
+            re.escape(current_app.config['IMAGES_NAME']),
+            '|'.join(re.escape(mode) for mode in self.MODES)
+        ), endpoint)
+        if m:
+            
             filename = values.pop('filename')
+            mode = m.group(1)
+
+            # This is slightly awkward, but I want to trigger the built-in
+            # TypeError if you use the "images.<mode>" method AND provide
+            # a "mode" kwarg.
+            if mode:
+                return self.build_url(filename, mode=mode, **values)
             return self.build_url(filename, **values)
+
         return None
 
     def _context_processor(self):
@@ -138,8 +155,11 @@ class Images(object):
                     (dx, dy, dx + width, dy + height)
                 )
             
-            else:
+            elif mode == self.MODE_RESHAPE or mode is None:
                 img = img.resize((width, height), image.ANTIALIAS)
+
+            else:
+                raise ValueError('unsupported mode %r' % mode)
         
         elif width:
             height = orig_height * width // orig_width
