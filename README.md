@@ -14,10 +14,10 @@ For example:
 
 Specify behaviour with keyword arguments:
 
-- `mode`: one of `'fit'`, `'crop'`, `'pad`', or `None`:
+- `mode`: one of `'fit'`, `'crop'`, `'pad'`, or `None`:
     - `'fit'`: as large as possible while fitting within the given dimensions;
-    - `'crop`': as large as possible while fitting into the given aspect ratio;
-    - `'pad`': as large as possible while fitting within the given dimensions, and padding to the given dimensions with a background colour;
+    - `'crop'`: as large as possible while fitting into the given aspect ratio;
+    - `'pad'`: as large as possible while fitting within the given dimensions, and padding to the given dimensions with a background colour;
     - `None`: resize to the specific dimensions without preserving aspect ratio.
 - `width` and `height`: pixel dimensions; at least one is required.
 - `format`: The file extension to use (as accepted by PIL); defaults to the input image's extension.
