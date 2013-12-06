@@ -14,7 +14,7 @@ from urllib2 import urlopen
 from urllib import urlencode
 from subprocess import call
 
-import Image as image
+from PIL import Image as image
 from flask import request, current_app, send_file, abort
 from itsdangerous import Signer, constant_time_compare
 
