@@ -1,0 +1,2 @@
+Mike Boers, @mikeboers on GitHub, <github@mikeboers.com>
+Iuri de Silvio, @iurisilvio on GitHub, <iurisilvio@gmail.com>: Initial `url_for` implementation.

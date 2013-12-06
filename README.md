@@ -1,6 +1,8 @@
 Flask-Images
 ============
 
+[![Build Status](https://travis-ci.org/mikeboers/Flask-Images.png?branch=master)](https://travis-ci.org/mikeboers/Flask-Images)
+
 Dynamic image resizing for Flask.
 
 This extension adds a `resized_img_src` function to the template context, which creates a URL to dynamically resize an image. This function takes either a path to a local image (either absolute, or relative to the `IMAGES_PATH`) or an URL to a remote image, and returns a URL that will serve a resized version on demand.

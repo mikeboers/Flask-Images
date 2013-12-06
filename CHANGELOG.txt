@@ -1,6 +1,11 @@
+1.1.0
+-----
+- `url_for('images', **kw)` to ease transition from static files.
+- Compatible with Pillow.
+
+
 1.0.0
 -----
-
 - First official release!
 - Removed lots of backwards compatibility with my own sites:
     - restricted default path to ['static'];
