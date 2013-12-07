@@ -35,20 +35,22 @@ class Images(object):
     MODE_RESHAPE = 'reshape'
     MODES = (MODE_FIT, MODE_CROP, MODE_PAD, MODE_RESHAPE)
     
-    def __init__(self, app=None):
+    def __init__(self, app=None, name=None, url_prefix=None, search_paths=None,
+                 cache_path=None, max_age=None):
         if app is not None:
-            self.init_app(app)
+            self.init_app(app, name, url_prefix, search_paths, cache_path, max_age)
 
-    def init_app(self, app):
+    def init_app(self, app, name=None, url_prefix=None, search_paths=None,
+                 cache_path=None, max_age=None):
         if not hasattr(app, 'extensions'):
             app.extensions = {}
         app.extensions['images'] = self
 
-        self.url_prefix = app.config.get('IMAGES_URL', '/imgsizer') # This is historical.
-        self.name = app.config.get('IMAGES_NAME', 'images')
-        self.search_paths = app.config.get('IMAGES_PATH', ['static'])
-        self.cache_path = app.config.get('IMAGES_CACHE', '/tmp/flask-images')
-        self.max_age = app.config.get('IMAGES_MAX_AGE', 3600)
+        self.url_prefix = url_prefix or app.config.get('IMAGES_URL', '/imgsizer')  # This is historical.
+        self.name = name or app.config.get('IMAGES_NAME', 'images')
+        self.search_paths = search_paths or app.config.get('IMAGES_PATH', ['static'])
+        self.cache_path = cache_path or app.config.get('IMAGES_CACHE', '/tmp/flask-images')
+        self.max_age = max_age or app.config.get('IMAGES_MAX_AGE', 3600)
 
         app.add_url_rule(self.url_prefix + '/<path:path>', self.name, self.handle_request)
         app.context_processor(self._context_processor)
