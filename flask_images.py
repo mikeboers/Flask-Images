@@ -44,13 +44,13 @@ class Images(object):
             app.extensions = {}
         app.extensions['images'] = self
 
-        app.config.setdefault('IMAGES_URL', '/imgsizer') # This is historical.
-        app.config.setdefault('IMAGES_NAME', 'images')
-        app.config.setdefault('IMAGES_PATH', ['static'])
-        app.config.setdefault('IMAGES_CACHE', '/tmp/flask-images')
-        app.config.setdefault('IMAGES_MAX_AGE', 3600)
+        self.url_prefix = app.config.get('IMAGES_URL', '/imgsizer') # This is historical.
+        self.name = app.config.get('IMAGES_NAME', 'images')
+        self.search_paths = app.config.get('IMAGES_PATH', ['static'])
+        self.cache_path = app.config.get('IMAGES_CACHE', '/tmp/flask-images')
+        self.max_age = app.config.get('IMAGES_MAX_AGE', 3600)
 
-        app.add_url_rule(app.config['IMAGES_URL'] + '/<path:path>', app.config['IMAGES_NAME'], self.handle_request)
+        app.add_url_rule(self.url_prefix + '/<path:path>', self.name, self.handle_request)
         app.context_processor(self._context_processor)
         app.url_build_error_handlers.append(self.build_error_handler)
 
@@ -58,7 +58,7 @@ class Images(object):
 
         # See if we were asked for "images" or "images.<mode>".
         m = re.match(r'^%s(?:\.(%s))?$' % (
-            re.escape(current_app.config['IMAGES_NAME']),
+            re.escape(self.name),
             '|'.join(re.escape(mode) for mode in self.MODES)
         ), endpoint)
         if m:
@@ -107,14 +107,14 @@ class Images(object):
         sig = signer.get_signature('%s?%s' % (local_path, query))
 
         return '%s/%s?%s&s=%s' % (
-            current_app.config['IMAGES_URL'],
+            self.url_prefix,
             local_path,
             query,
             sig,
         )
         
     def find_img(self, local_path):
-        for path_base in current_app.config['IMAGES_PATH']:
+        for path_base in self.search_paths:
             path = os.path.join(current_app.root_path, path_base, local_path)
             if os.path.exists(path):
                 return path
@@ -227,7 +227,7 @@ class Images(object):
             path, mode, width, height, quality, format, background
         ))).hexdigest()
 
-        cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
+        cache_dir = os.path.join(self.cache_path, cache_key[:2])
         cache_path = os.path.join(cache_dir, cache_key + '.' + format)
 
         cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
@@ -250,7 +250,7 @@ class Images(object):
         
         return send_file(cache_path,
             mimetype='image/%s' % format,
-            cache_timeout=31536000 if has_version else current_app.config['IMAGES_MAX_AGE'],
+            cache_timeout=31536000 if has_version else self.max_age,
         )
 
 
