@@ -1,3 +1,9 @@
+try:
+    import multiprocessing
+except ImportError:
+    pass
+
+
 from setuptools import setup
 
 setup(
