@@ -14,4 +14,4 @@ install:
     - pip install --use-mirrors nose
 
 script:
-    - nosetests
+    - python setup.py test
