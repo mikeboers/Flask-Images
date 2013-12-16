@@ -29,7 +29,8 @@ setup(
     ],
 
     tests_require=[
-        'nose>=1.0'
+        'Flask-Testing',
+        'nose>=1.0',
     ],
     test_suite='nose.collector',
 )

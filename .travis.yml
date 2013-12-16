@@ -9,9 +9,5 @@ before_install:
   - sudo ln -s /usr/lib/`uname -i`-linux-gnu/libfreetype.so ~/virtualenv/python2.7/lib/
   - sudo ln -s /usr/lib/`uname -i`-linux-gnu/libz.so ~/virtualenv/python2.7/lib/
 
-install:
-    - pip install --use-mirrors -r tests/requirements.txt
-    - pip install --use-mirrors nose
-
 script:
     - python setup.py test
