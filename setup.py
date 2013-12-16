@@ -20,7 +20,7 @@ setup(
 
     install_requires=[
         'Flask',
-        'PIL',
+        'Pillow',
     ],
 
     classifiers=[
