@@ -9,6 +9,13 @@ This extension adds a `resized_img_src` function to the template context, which 
 
 Alternatively, this responds to `url_for('images', filename='...', **kw)` to ease transition from Flask's static files.
 
+Try [the demo app][demo_root] ([source][demo_src]), and see [with an example image][demo_demo].
+
+[demo_root]: https://flask-images.herokuapp.com
+[demo_demo]: https://flask-images.herokuapp.com/demo?url=https%3A%2F%2Ffarm4.staticflickr.com%2F3540%2F5753968652_a28184e5fb.jpg
+[demo_src]: https://github.com/mikeboers/Flask-Images/blob/master/demo
+
+
 For example:
 
 ~~~
@@ -47,6 +54,20 @@ From GitHub:
 git clone git@github.com:mikeboers/Flask-Images
 pip install -e Flask-Images
 ~~~
+
+
+Usage
+-----
+
+All you must do is make sure your app has a secret key, then create the `Images` object:
+
+~~~python
+app = Flask(__name__)
+app.secret_key = 'monkey'
+images = Images(app)
+~~~
+
+Now, use either the `resized_img_src` function in your templates, or the `images.<mode>` routes in `url_for`.
 
 
 Configuration
