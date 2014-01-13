@@ -4,16 +4,19 @@ from flask.ext.images import Images
 
 app = Flask(__name__)
 app.secret_key = 'monkey'
+app.debug = True
 images = Images(app)
 
 
 @app.route('/')
-def index():
-    return render_template('index.tpl')
-
 @app.route('/demo')
-def demo():
-    return render_template('demo.tpl', url=request.args['url'])
+def index():
+
+    url = request.args.get('url')
+    width = max(0, min(1000, int(request.args.get('width', 200))))
+    height = max(0, min(1000, int(request.args.get('height', 200))))
+    return render_template('main.tpl', url=url, width=width, height=height)
+
 
 @app.route('/direct/<path:url>')
 def direct(url):
