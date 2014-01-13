@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect
+from flask import Flask, request, redirect, render_template
 from flask.ext.images import Images
 
 
@@ -7,9 +7,13 @@ app.secret_key = 'monkey'
 images = Images(app)
 
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def do_main():
-    return '''Welcome to the Flask-Images demo!''', 200, [('Content-Type', 'text/plain')]
+    if request.method == 'GET':
+        return render_template('index.tpl')
+    else:
+        return render_template('demo.tpl', url=request.form['url'])
+
 
 @app.route('/<path:url>')
 def do_url(url):
