@@ -8,7 +8,7 @@
     </style>
 <body>
     <p>Welcome to the Flask-Images demo!
-    <form method='POST'>
+    <form action="{{url_for('demo')}}">
         <label for="url">Image URL:</label>
         <input name="url"/>
 

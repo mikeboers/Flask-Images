@@ -7,16 +7,16 @@ app.secret_key = 'monkey'
 images = Images(app)
 
 
-@app.route('/', methods=['GET', 'POST'])
-def do_main():
-    if request.method == 'GET':
-        return render_template('index.tpl')
-    else:
-        return render_template('demo.tpl', url=request.form['url'])
+@app.route('/')
+def index():
+    return render_template('index.tpl')
 
+@app.route('/demo')
+def demo():
+    return render_template('demo.tpl', url=request.args['url'])
 
-@app.route('/<path:url>')
-def do_url(url):
+@app.route('/direct/<path:url>')
+def direct(url):
     kwargs = {}
     for key in ('width', 'height', 'mode', 'quality'):
         value = request.args.get(key) or request.args.get(key[0])
