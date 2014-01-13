@@ -1,0 +1,4 @@
+# Demo requirements.
+gunicorn
+flask
+pillow
