@@ -7,6 +7,7 @@ from urllib2 import urlopen
 from urlparse import urlparse
 import base64
 import datetime
+import errno
 import hashlib
 import logging
 import math
@@ -25,6 +26,14 @@ log = logging.getLogger(__name__)
 
 def encode_int(value):
     return base64.urlsafe_b64encode(struct.pack('>I', int(value))).rstrip('=').lstrip('A')
+
+
+def makedirs(path):
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
 
 
 class Images(object):
@@ -186,11 +195,14 @@ class Images(object):
         
         remote_url = query.get('u')
         if remote_url:
+
             # Download the remote file.
+            makedirs(current_app.config['IMAGES_CACHE'])
             path = os.path.join(
-                self.cache_root,
+                current_app.config['IMAGES_CACHE'],
                 hashlib.md5(remote_url).hexdigest() + os.path.splitext(remote_url)[1]
             )
+
             if not os.path.exists(path):
                 log.info('downloading %s' % remote_url)
                 tmp_path = path + '.tmp-' + str(os.getpid())
@@ -239,11 +251,7 @@ class Images(object):
             img = image.open(path)
             img = self.resize(img, width=width, height=height, mode=mode, background=background)
             
-            try:
-                os.makedirs(cache_dir)
-            except OSError:
-                pass
-
+            makedirs(cache_dir)
             cache_file = open(cache_path, 'wb')
             img.save(cache_file, format, quality=quality)
             cache_file.close()
