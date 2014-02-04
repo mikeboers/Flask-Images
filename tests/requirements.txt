@@ -1,3 +1,0 @@
-PIL
-Flask
-Flask-Testing
