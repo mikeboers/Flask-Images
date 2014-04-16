@@ -2,7 +2,7 @@ from __future__ import division
 
 from cStringIO import StringIO
 from subprocess import call
-from urllib import urlencode
+from urllib import urlencode, quote as urlquote
 from urllib2 import urlopen
 from urlparse import urlparse
 import base64
@@ -34,6 +34,11 @@ def makedirs(path):
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
+
+
+# We must whitelist schemes which are permitted, otherwise craziness (such as
+# allowing access to the filesystem) may ensue.
+ALLOWED_SCHEMES = set(('http', 'https', 'ftp'))
 
 
 class Images(object):
@@ -91,7 +96,14 @@ class Images(object):
 
     def build_url(self, local_path, **kwargs):
 
+        # Make the path relative.
         local_path = local_path.strip('/')
+
+        # We complain when we see non-normalized paths, as it is a good
+        # indicator that unsanitized data may be getting through.
+        norm_path = os.path.normpath(local_path)
+        if local_path != norm_path or norm_path.startswith('../'):
+            raise ValueError('path is not normalized')
 
         for key in 'background mode width height quality format padding'.split():
             if key in kwargs:
@@ -99,7 +111,9 @@ class Images(object):
         
         # Remote URLs are encoded into the query.
         parsed = urlparse(local_path)
-        if parsed.netloc:
+        if parsed.scheme or parsed.netloc:
+            if parsed.scheme not in ALLOWED_SCHEMES:
+                raise ValueError('scheme %r is not allowed' % parsed.scheme)
             kwargs['u'] = local_path
             local_path = 'remote'
 
@@ -117,7 +131,7 @@ class Images(object):
 
         return '%s/%s?%s&s=%s' % (
             current_app.config['IMAGES_URL'],
-            local_path,
+            urlquote(local_path),
             query,
             sig,
         )
@@ -195,6 +209,12 @@ class Images(object):
         
         remote_url = query.get('u')
         if remote_url:
+
+            # This is redundant for newly built URLs, but not for those which
+            # have already been generated and cached.
+            parsed = urlparse(remote_url)
+            if parsed.scheme not in ALLOWED_SCHEMES:
+                abort(404)
 
             # Download the remote file.
             makedirs(current_app.config['IMAGES_CACHE'])

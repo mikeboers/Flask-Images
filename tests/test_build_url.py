@@ -1,19 +1,7 @@
-from urlparse import urlsplit, parse_qsl
-
-from flask import Flask, url_for
-from flask.ext.testing import TestCase
-from flask.ext.images import Images
+from . import *
 
 
 class TestUrlBuild(TestCase):
-
-    def create_app(self):
-        app = Flask(__name__)
-        app.config['TESTING'] = True
-        app.config['SECRET_KEY'] = 'secret secret'
-        app.config['IMAGES_PATH'] = ['assets']
-        self.images = Images(app)
-        return app
 
     def test_default_mode(self):
 
@@ -35,6 +23,9 @@ class TestUrlBuild(TestCase):
         for mode in 'crop', 'fit', 'pad', 'reshape':
 
             url = url_for('images.%s' % mode, filename='cc.png', width=5)
+            response = self.client.get(url)
+            self.assert200(response)
+            
             parsed_url = urlsplit(url)
             query_args = dict(parse_qsl(parsed_url.query))
 
@@ -45,4 +36,3 @@ class TestUrlBuild(TestCase):
 
     def test_too_many_modes(self):
         self.assertRaises(TypeError, url_for, 'images.crop', filename='cc.png', mode='reshape')
-
