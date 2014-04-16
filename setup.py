@@ -13,14 +13,18 @@ setup(
     url='http://github.com/mikeboers/Flask-Images',
         
     author='Mike Boers',
-    author_email='flask_imgsizer@mikeboers.com',
+    author_email='flask_images@mikeboers.com',
     license='BSD-3',
 
     py_modules=['flask_images'],
 
     install_requires=[
         'Flask',
-        'Pillow',
+
+        # We need either PIL, or the newer Pillow. Since this may induce some
+        # dependency madness, I have created a module that should flatten that
+        # out. See: https://github.com/mikeboers/Flask-Images/pull/10 for more.
+        'PillowCase',
     ],
 
     classifiers=[
