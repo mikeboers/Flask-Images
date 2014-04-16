@@ -1,4 +1,10 @@
-from distutils.core import setup
+try:
+    import multiprocessing
+except ImportError:
+    pass
+
+
+from setuptools import setup
 
 setup(
     name='Flask-Images',
@@ -9,14 +15,14 @@ setup(
     author='Mike Boers',
     author_email='flask_imgsizer@mikeboers.com',
     license='BSD-3',
-    
+
     py_modules=['flask_images'],
 
-    install_requires='''
-        Flask
-        PIL
-    ''',
-    
+    install_requires=[
+        'Flask',
+        'PIL',
+    ],
+
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
@@ -27,5 +33,10 @@ setup(
         'Programming Language :: Python :: 3',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    
+
+    tests_require=[
+        'Flask-Testing',
+        'nose>=1.0',
+    ],
+    test_suite='nose.collector',
 )
