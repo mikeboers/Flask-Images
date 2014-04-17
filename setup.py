@@ -43,4 +43,6 @@ setup(
         'nose>=1.0',
     ],
     test_suite='nose.collector',
+
+    zip_safe=False,
 )
