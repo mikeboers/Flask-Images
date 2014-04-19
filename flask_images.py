@@ -101,8 +101,10 @@ class Images(object):
 
         # We complain when we see non-normalized paths, as it is a good
         # indicator that unsanitized data may be getting through.
+        # Mutating the scheme syntax to match is a little gross, but it works
+        # for today.
         norm_path = os.path.normpath(local_path)
-        if local_path != norm_path or norm_path.startswith('../'):
+        if local_path.replace('://', ':/') != norm_path or norm_path.startswith('../'):
             raise ValueError('path is not normalized')
 
         for key in 'background mode width height quality format padding'.split():
