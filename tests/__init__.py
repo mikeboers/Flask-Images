@@ -1,6 +1,6 @@
 from urlparse import urlsplit, parse_qsl
 
-from flask import Flask, url_for
+from flask import Flask, url_for, render_template_string
 from flask.ext.testing import TestCase as BaseTestCase
 from flask.ext.images import Images
 
