@@ -65,8 +65,9 @@ class Images(object):
         app.config.setdefault('IMAGES_MAX_AGE', 3600)
 
         app.add_url_rule(app.config['IMAGES_URL'] + '/<path:path>', app.config['IMAGES_NAME'], self.handle_request)
-        app.context_processor(self._context_processor)
         app.url_build_error_handlers.append(self.build_error_handler)
+
+        app.add_template_global(resized_img_src)
 
     def build_error_handler(self, error, endpoint, values):
 
@@ -88,11 +89,6 @@ class Images(object):
             return self.build_url(filename, **values)
 
         return None
-
-    def _context_processor(self):
-        return dict(
-            resized_img_src=resized_img_src,
-        )
 
     def build_url(self, local_path, **kwargs):
 
