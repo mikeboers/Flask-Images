@@ -18,9 +18,14 @@
 <body>
     <p>Welcome to the Flask-Images demo!
     <form>
-        <label for="url">Resize image</label>
-        <input name="url" size="50" value="{{ url or 'https://farm4.staticflickr.com/3540/5753968652_a28184e5fb.jpg' }}"/>
-        to <input name="width" size="3" value="{{ width or 200 }}" /> by <input name="height" size="3" value="{{ height or 200 }}" />
+
+        <label>Source URL:
+            <input name="url" size="80" value="{{ url or 'https://farm4.staticflickr.com/3540/5753968652_a28184e5fb.jpg' }}"/>
+        </label><br/>
+        <label>Width: <input name="width" size="3" value="{{ width }}" /></label><br/>
+        <label>Height: <input name="height" size="3" value="{{ height }}" /></label><br/>
+        <label>Background: <input name="background" size="7" value="{{ background }}" /></label><br/>
+
         <input type="submit" />
     </form>
 
@@ -41,5 +46,5 @@
             <td><img src="{{ url_for('images.fit', filename=url, width=width, height=height) }}" />
         <tr>
             <td>width={{ width }}<br />height={{ height }}<br />mode='pad'
-            <td><img src="{{ url_for('images.pad', filename=url, width=width, height=height) }}" />
+            <td><img src="{{ url_for('images.pad', filename=url, width=width, height=height, background=background) }}" />
     {% endif %}

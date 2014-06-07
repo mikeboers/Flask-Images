@@ -165,7 +165,7 @@ class Images(object):
                 img = img.resize(fit, image.ANTIALIAS)
                 
                 if mode == self.MODE_PAD:
-                    pad_color = {'white': (255, 255, 255)}.get(str(background).lower(), 0)
+                    pad_color = str(background or 'black')
                     back = image.new('RGBA', (width, height), pad_color)
                     back.paste(img, (
                         (width  - fit[0]) // 2,

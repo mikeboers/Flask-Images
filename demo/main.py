@@ -15,7 +15,8 @@ def index():
     url = request.args.get('url')
     width = max(0, min(1000, int(request.args.get('width', 200))))
     height = max(0, min(1000, int(request.args.get('height', 200))))
-    return render_template('main.tpl', url=url, width=width, height=height)
+    background = request.args.get('background', '#000000')
+    return render_template('main.tpl', url=url, width=width, height=height, background=background)
 
 
 @app.route('/direct/<path:url>')
