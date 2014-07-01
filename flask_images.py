@@ -218,7 +218,7 @@ class Images(object):
             makedirs(current_app.config['IMAGES_CACHE'])
             path = os.path.join(
                 current_app.config['IMAGES_CACHE'],
-                hashlib.md5(remote_url).hexdigest() + os.path.splitext(remote_url)[1]
+                hashlib.md5(remote_url).hexdigest() + os.path.splitext(parsed.path)[1]
             )
 
             if not os.path.exists(path):
