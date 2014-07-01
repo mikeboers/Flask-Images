@@ -249,7 +249,7 @@ class Images(object):
         height = int(height) if height else None
         quality = query.get('q')
         quality = int(quality) if quality else 75
-        format = query.get('f', '').lower() or os.path.splitext(path)[1][1:] or 'jpeg'
+        format = (query.get('f', '') or os.path.splitext(path)[1][1:] or 'jpeg').lower()
         format = {'jpg' : 'jpeg'}.get(format, format)
         has_version = 'v' in query
                 
