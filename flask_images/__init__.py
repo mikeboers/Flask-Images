@@ -14,7 +14,6 @@ import logging
 import math
 import os
 import re
-import struct
 import sys
 
 from PIL import Image as image
@@ -26,7 +25,7 @@ log = logging.getLogger(__name__)
 
 
 def encode_int(value):
-    base64_string = base64.urlsafe_b64encode(struct.pack('>I', int(value))).decode('UTF-8')
+    base64_string = base64.urlsafe_b64encode(bytes(value)).decode('UTF-8')
     return base64_string.rstrip('=').lstrip('A')
 
 def makedirs(path):
