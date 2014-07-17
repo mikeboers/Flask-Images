@@ -1,10 +1,11 @@
-from __future__ import division
+from __future__ import unicode_literals
 
-from cStringIO import StringIO
 from subprocess import call
-from urllib import urlencode, quote as urlquote
-from urllib2 import urlopen
-from urlparse import urlparse
+from .compat import urlencode, quote as urlquote
+from .compat import urlopen
+from .compat import urlparse
+from .compat import iteritems
+
 import base64
 import datetime
 import errno
@@ -25,8 +26,8 @@ log = logging.getLogger(__name__)
 
 
 def encode_int(value):
-    return base64.urlsafe_b64encode(struct.pack('>I', int(value))).rstrip('=').lstrip('A')
-
+    base64_string = base64.urlsafe_b64encode(struct.pack('>I', int(value))).decode('UTF-8')
+    return base64_string.rstrip('=').lstrip('A')
 
 def makedirs(path):
     try:
@@ -122,7 +123,7 @@ class Images(object):
                 kwargs['v'] = encode_int(int(os.path.getmtime(abs_path)))
         
         # Sign the query.
-        public_kwargs = ((k, v) for k, v in kwargs.iteritems() if not k.startswith('_'))
+        public_kwargs = ((k, v) for k, v in iteritems(kwargs) if not k.startswith('_'))
         query = urlencode(sorted(public_kwargs), True)
         signer = Signer(current_app.secret_key)
         sig = signer.get_signature('%s?%s' % (local_path, query))
@@ -131,7 +132,7 @@ class Images(object):
             current_app.config['IMAGES_URL'],
             urlquote(local_path),
             query,
-            sig,
+            str(sig, "utf-8")
         )
         
     def find_img(self, local_path):
@@ -194,15 +195,17 @@ class Images(object):
     
 
     def handle_request(self, path):
-
         # Verify the signature.
-        query = dict(request.args.iteritems())
-        old_sig = str(query.pop('s', None))
+        query = dict(iteritems(request.args))
+
+        old_sig = query.pop('s', None)
         if not old_sig:
             abort(404)
+
         signer = Signer(current_app.secret_key)
-        new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(query.iteritems()), True)))
-        if not constant_time_compare(old_sig, new_sig):
+        new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(iteritems(query)), True)))
+
+        if not constant_time_compare(bytes(old_sig, "utf-8"), new_sig):
             abort(404)
         
         remote_url = query.get('u')
@@ -212,13 +215,14 @@ class Images(object):
             # have already been generated and cached.
             parsed = urlparse(remote_url)
             if parsed.scheme not in ALLOWED_SCHEMES:
+                print("url schema is not allowed")
                 abort(404)
 
             # Download the remote file.
             makedirs(current_app.config['IMAGES_CACHE'])
             path = os.path.join(
                 current_app.config['IMAGES_CACHE'],
-                hashlib.md5(remote_url).hexdigest() + os.path.splitext(parsed.path)[1]
+                hashlib.md5(bytes(remote_url, "utf-8")).hexdigest() + os.path.splitext(parsed.path)[1]
             )
 
             if not os.path.exists(path):
@@ -253,9 +257,9 @@ class Images(object):
         format = {'jpg' : 'jpeg'}.get(format, format)
         has_version = 'v' in query
                 
-        cache_key = hashlib.md5(repr((
+        cache_key = hashlib.md5(bytes(repr((
             path, mode, width, height, quality, format, background
-        ))).hexdigest()
+        )), "utf-8")).hexdigest()
 
         cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
         cache_path = os.path.join(cache_dir, cache_key + '.' + format)
