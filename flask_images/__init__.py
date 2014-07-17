@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import division, unicode_literals
 
 from subprocess import call
 from .compat import urlencode, quote as urlquote
@@ -132,7 +132,7 @@ class Images(object):
             current_app.config['IMAGES_URL'],
             urlquote(local_path),
             query,
-            str(sig, "utf-8")
+            sig.decode("utf-8")
         )
         
     def find_img(self, local_path):
@@ -205,7 +205,7 @@ class Images(object):
         signer = Signer(current_app.secret_key)
         new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(iteritems(query)), True)))
 
-        if not constant_time_compare(bytes(old_sig, "utf-8"), new_sig):
+        if not constant_time_compare(old_sig.encode("utf-8"), new_sig):
             abort(404)
         
         remote_url = query.get('u')
@@ -215,14 +215,13 @@ class Images(object):
             # have already been generated and cached.
             parsed = urlparse(remote_url)
             if parsed.scheme not in ALLOWED_SCHEMES:
-                print("url schema is not allowed")
                 abort(404)
 
             # Download the remote file.
             makedirs(current_app.config['IMAGES_CACHE'])
             path = os.path.join(
                 current_app.config['IMAGES_CACHE'],
-                hashlib.md5(bytes(remote_url, "utf-8")).hexdigest() + os.path.splitext(parsed.path)[1]
+                hashlib.md5(remote_url.encode("utf-8")).hexdigest() + os.path.splitext(parsed.path)[1]
             )
 
             if not os.path.exists(path):
@@ -257,9 +256,9 @@ class Images(object):
         format = {'jpg' : 'jpeg'}.get(format, format)
         has_version = 'v' in query
                 
-        cache_key = hashlib.md5(bytes(repr((
+        cache_key = hashlib.md5(repr((
             path, mode, width, height, quality, format, background
-        )), "utf-8")).hexdigest()
+        )).encode("utf-8")).hexdigest()
 
         cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
         cache_path = os.path.join(cache_dir, cache_key + '.' + format)
