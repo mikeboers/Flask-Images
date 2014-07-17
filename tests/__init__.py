@@ -1,4 +1,7 @@
-from urlparse import urlsplit, parse_qsl
+try:
+    from urlparse import urlsplit, parse_qsl
+except ImportError:
+    from urllib.parse import urlsplit, parse_qsl 
 
 from flask import Flask, url_for, render_template_string
 from flask.ext.testing import TestCase as BaseTestCase
