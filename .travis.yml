@@ -2,12 +2,22 @@ language: python
 
 python:
     - "2.7"
+    - "pypy"
+
+env:
+    - FLASK_VERSION="==0.9"
+    - FLASK_VERSION="==0.10"
+    - FLASK_VERSION=""
 
 before_install:
   - sudo apt-get install libjpeg8 libjpeg8-dev libfreetype6 libfreetype6-dev zlib1g-dev tree
   - sudo ln -s /usr/lib/`uname -i`-linux-gnu/libjpeg.so.8 ~/virtualenv/python2.7/lib/
   - sudo ln -s /usr/lib/`uname -i`-linux-gnu/libfreetype.so ~/virtualenv/python2.7/lib/
   - sudo ln -s /usr/lib/`uname -i`-linux-gnu/libz.so ~/virtualenv/python2.7/lib/
+  - pip install nose
 
-script:
-    - python setup.py test
+install:
+  - pip install Flask$FLASK_VERSION
+  - pip install -e .
+
+script: nosetests
