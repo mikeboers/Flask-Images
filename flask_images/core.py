@@ -67,7 +67,12 @@ class Images(object):
         app.add_url_rule(app.config['IMAGES_URL'] + '/<path:path>', app.config['IMAGES_NAME'], self.handle_request)
         app.url_build_error_handlers.append(self.build_error_handler)
 
-        app.add_template_global(resized_img_src)
+        if hasattr(app, 'add_template_global'): # Flask >= 0.10
+            app.add_template_global(resized_img_src)
+        else:
+            ctx = {'resized_img_src': resized_img_src}
+            app.context_processor(lambda: ctx)
+
 
     def build_error_handler(self, error, endpoint, values):
 

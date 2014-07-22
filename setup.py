@@ -7,6 +7,7 @@ except ImportError:
 from setuptools import setup
 
 setup(
+
     name='Flask-Images',
     version='1.1.5',
     description='Dynamic image resizing for Flask.',
@@ -19,12 +20,15 @@ setup(
     packages=['flask_images'],
 
     install_requires=[
-        'Flask',
+
+        'Flask>=0.9',
+        'itsdangerous', # For Flask v0.9
 
         # We need either PIL, or the newer Pillow. Since this may induce some
         # dependency madness, I have created a module that should flatten that
         # out. See: https://github.com/mikeboers/Flask-Images/pull/10 for more.
         'PillowCase',
+    
     ],
 
     classifiers=[
@@ -39,7 +43,6 @@ setup(
     ],
 
     tests_require=[
-        'Flask-Testing',
         'nose>=1.0',
     ],
     test_suite='nose.collector',
