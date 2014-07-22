@@ -1,5 +1,11 @@
+2.0.0
+-----
+- INCOMPATIBILITY: Many things moved to flask.ext.images.core; `Images` and
+  `resized_img_src` remain.
+- Compatible with Flask 0.9 (from 0.10).
+
 1.1.5
----------
+-----
 - Background colours are parsed by PIL; hex and html colours are now allowed.
 - Fix for extension parsing bugs with URLs.
 

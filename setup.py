@@ -9,7 +9,7 @@ from setuptools import setup
 setup(
 
     name='Flask-Images',
-    version='1.1.5',
+    version='2.0.0',
     description='Dynamic image resizing for Flask.',
     url='http://github.com/mikeboers/Flask-Images',
         
@@ -28,7 +28,7 @@ setup(
         # dependency madness, I have created a module that should flatten that
         # out. See: https://github.com/mikeboers/Flask-Images/pull/10 for more.
         'PillowCase',
-    
+
     ],
 
     classifiers=[
