@@ -16,7 +16,7 @@ setup(
     author_email='flask_images@mikeboers.com',
     license='BSD-3',
 
-    py_modules=['flask_images'],
+    packages=['flask_images'],
 
     install_requires=[
         'Flask',
