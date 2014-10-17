@@ -43,6 +43,7 @@ ALLOWED_SCHEMES = set(('http', 'https', 'ftp'))
 # The options which we immediately recognize and shorten.
 LONG_TO_SHORT = dict(
     background='b',
+    cache='c',
     format='f',
     height='h',
     mode='m',
@@ -148,6 +149,11 @@ class Images(object):
             if abs_path:
                 kwargs['version'] = encode_int(int(os.path.getmtime(abs_path)))
         
+        # Prep the cache
+        cache = kwargs.pop('cache', True)
+        if not cache:
+            kwargs['cache'] = ''
+
         # Prep the transform.
         transform = kwargs.get('transform')
         if transform and not isinstance(transform, basestring):
@@ -322,19 +328,23 @@ class Images(object):
         format = (query.get('format', '') or os.path.splitext(path)[1][1:] or 'jpeg').lower()
         format = {'jpg' : 'jpeg'}.get(format, format)
         has_version = 'version' in query
+        use_cache = query.get('cache', True)
 
-        cache_key_parts = [path, mode, width, height, quality, format, background]
-        if transform:
-            cache_key_parts.append(transform)
-        cache_key = hashlib.md5(repr(tuple(cache_key_parts))).hexdigest()
-        cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
-        cache_path = os.path.join(cache_dir, cache_key + '.' + format)
-        cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
+        if use_cache:
+            cache_key_parts = [path, mode, width, height, quality, format, background]
+            if transform:
+                cache_key_parts.append(transform)
+            cache_key = hashlib.md5(repr(tuple(cache_key_parts))).hexdigest()
+            cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
+            cache_path = os.path.join(cache_dir, cache_key + '.' + format)
+            cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
         
-        if not cache_mtime or cache_mtime < raw_mtime:
+        mimetype = 'image/%s' % format
+        cache_timeout = 31536000 if has_version else current_app.config['IMAGES_MAX_AGE']
+
+        if not use_cache or not cache_mtime or cache_mtime < raw_mtime:
             
             log.info('resizing %r for %s' % (path, query))
-            
             img = image.open(path)
             img = self.resize(img,
                 width=width,
@@ -343,16 +353,21 @@ class Images(object):
                 background=background,
                 transform=transform,
             )
+
+            if not use_cache:
+                fh = StringIO()
+                img.save(fh, format, quality=quality)
+                return fh.getvalue(), 200, [
+                    ('Content-Type', mimetype),
+                    ('Cache-Control', cache_timeout),
+                ]
             
             makedirs(cache_dir)
             cache_file = open(cache_path, 'wb')
             img.save(cache_file, format, quality=quality)
             cache_file.close()
         
-        return send_file(cache_path,
-            mimetype='image/%s' % format,
-            cache_timeout=31536000 if has_version else current_app.config['IMAGES_MAX_AGE'],
-        )
+        return send_file(cache_path, mimetype=mimetype, cache_timeout=cache_timeout)
 
 
 def resized_img_src(path, **kw):
