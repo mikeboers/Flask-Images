@@ -56,6 +56,13 @@ LONG_TO_SHORT = dict(
 )
 SHORT_TO_LONG = dict((v, k) for k, v in LONG_TO_SHORT.iteritems())
 
+TRANSFORM_AXIS = {
+    image.EXTENT: (0, 1, 0, 1),
+    image.AFFINE: (None, None, 0, None, None, 1),
+    image.QUAD: (0, 1, 0, 1, 0, 1, 0, 1),
+    image.PERSPECTIVE: (None, None, None, None, None, None, None, None),
+    # image.MESH: ???
+}
 
 class Images(object):
     
@@ -156,8 +163,12 @@ class Images(object):
 
         # Prep the transform.
         transform = kwargs.get('transform')
-        if transform and not isinstance(transform, basestring):
-            kwargs['transform'] = ';'.join(map(str, transform))
+        if transform:
+            if isinstance(transform, basestring):
+                transform = re.split(r'[,;:_ ]', transform)
+            # This is a strange character, but we won't be using it and it
+            # doesn't escape.
+            kwargs['transform'] = '_'.join(map(str, transform))
 
         # Sign the query.
         public_kwargs = (
@@ -196,15 +207,22 @@ class Images(object):
         
         if transform:
             flag = getattr(image, transform[0].upper())
+            try:
+                axis = (None, 0, 1) + TRANSFORM_AXIS[flag]
+            except KeyError:
+                raise ValueError('unknown transform %r' % transform[0])
+            if len(transform) != len(axis):
+                raise ValueError('expected %d values. got %d' % (len(axis), len(transform)))
             for i in xrange(1, len(transform)):
                 v = transform[i]
                 if isinstance(v, basestring):
-                    if v.endswith('%h'):
-                        transform[i] = img.size[1] * float(v[:-2]) / 100
-                    elif v.endswith('%w'):
-                        transform[i] = img.size[0] * float(v[:-2]) / 100
+                    if v.endswith('%'):
+                        if axis[i] is None:
+                            raise ValueError('unknown dimension for %s value %d' % (transform[0], i))
+                        transform[i] = img.size[axis[i]] * float(v[:-1]) / 100
                     else:
                         transform[i] = float(v)
+            print transform
             img = img.transform(
                 (int(transform[1] or img.size[0]), int(transform[2] or img.size[1])),
                 flag,
