@@ -40,6 +40,21 @@ def makedirs(path):
 # allowing access to the filesystem) may ensue.
 ALLOWED_SCHEMES = set(('http', 'https', 'ftp'))
 
+# The options which we immediately recognize and shorten.
+LONG_TO_SHORT = dict(
+    background='b',
+    format='f',
+    height='h',
+    mode='m',
+    quality='q',
+    transform='x',
+    url='u',
+    version='v',
+    width='w',
+    # signature -> 's', but should not be here.
+)
+SHORT_TO_LONG = dict((v, k) for k, v in LONG_TO_SHORT.iteritems())
+
 
 class Images(object):
     
@@ -113,32 +128,37 @@ class Images(object):
         external = kwargs.pop('external', None) or kwargs.pop('_external', None)
         scheme = kwargs.pop('scheme', None)
         if scheme and not external:
-            raise ValueError('cannot specificy scheme without external=True')
+            raise ValueError('cannot specify scheme without external=True')
         if kwargs.get('_anchor'):
             raise ValueError('images have no _anchor')
         if kwargs.get('_method'):
             raise ValueError('images have no _method')
-
-        for key in 'background mode width height quality format padding'.split():
-            if key in kwargs:
-                kwargs[key[0]] = kwargs.pop(key)
         
         # Remote URLs are encoded into the query.
         parsed = urlparse(local_path)
         if parsed.scheme or parsed.netloc:
             if parsed.scheme not in ALLOWED_SCHEMES:
                 raise ValueError('scheme %r is not allowed' % parsed.scheme)
-            kwargs['u'] = local_path
-            local_path = 'remote'
+            kwargs['url'] = local_path
+            local_path = '_' # Must be something.
 
         # Local ones are not.
         else:
             abs_path = self.find_img(local_path)
             if abs_path:
-                kwargs['v'] = encode_int(int(os.path.getmtime(abs_path)))
+                kwargs['version'] = encode_int(int(os.path.getmtime(abs_path)))
         
+        # Prep the transform.
+        transform = kwargs.get('transform')
+        if transform and not isinstance(transform, basestring):
+            kwargs['transform'] = ';'.join(map(str, transform))
+
         # Sign the query.
-        public_kwargs = ((k, v) for k, v in kwargs.iteritems() if not k.startswith('_'))
+        public_kwargs = (
+            (LONG_TO_SHORT.get(k, k), v)
+            for k, v in kwargs.iteritems()
+            if not k.startswith('_')
+        )
         query = urlencode(sorted(public_kwargs), True)
         signer = Signer(current_app.secret_key)
         sig = signer.get_signature('%s?%s' % (local_path, query))
@@ -166,8 +186,26 @@ class Images(object):
             if os.path.exists(path):
                 return path
     
-    def resize(self, img, width=None, height=None, mode=None, background=None):
+    def resize(self, img, width=None, height=None, mode=None, transform=None, background=None):
         
+        if transform:
+            flag = getattr(image, transform[0].upper())
+            for i in xrange(1, len(transform)):
+                v = transform[i]
+                if isinstance(v, basestring):
+                    if v.endswith('%h'):
+                        transform[i] = img.size[1] * float(v[:-2]) / 100
+                    elif v.endswith('%w'):
+                        transform[i] = img.size[0] * float(v[:-2]) / 100
+                    else:
+                        transform[i] = float(v)
+            img = img.transform(
+                (int(transform[1] or img.size[0]), int(transform[2] or img.size[1])),
+                flag,
+                transform[3:],
+                image.BILINEAR,
+            )
+
         orig_width, orig_height = img.size
 
         width = min(width, orig_width) if width else None
@@ -231,7 +269,10 @@ class Images(object):
         if not constant_time_compare(old_sig, new_sig):
             abort(404)
         
-        remote_url = query.get('u')
+        # Expand kwargs.
+        query = dict((SHORT_TO_LONG.get(k, k), v) for k, v in query.iteritems())
+
+        remote_url = query.get('url')
         if remote_url:
 
             # This is redundant for newly built URLs, but not for those which
@@ -266,26 +307,28 @@ class Images(object):
         if request.if_modified_since and request.if_modified_since >= mtime:
             return '', 304
         
-        
-        mode = query.get('m')
-        background = query.get('b')
-        width = query.get('w')
-        width = int(width) if width else None
-        height = query.get('h')
-        height = int(height) if height else None
-        quality = query.get('q')
-        quality = int(quality) if quality else 75
-        format = (query.get('f', '') or os.path.splitext(path)[1][1:] or 'jpeg').lower()
-        format = {'jpg' : 'jpeg'}.get(format, format)
-        has_version = 'v' in query
-                
-        cache_key = hashlib.md5(repr((
-            path, mode, width, height, quality, format, background
-        ))).hexdigest()
+        mode = query.get('mode')
 
+        transform = query.get('transform')
+        transform = re.split(r'[;,_/ ]', transform) if transform else None
+
+        background = query.get('background')
+        width = query.get('width')
+        width = int(width) if width else None
+        height = query.get('height')
+        height = int(height) if height else None
+        quality = query.get('quality')
+        quality = int(quality) if quality else 75
+        format = (query.get('format', '') or os.path.splitext(path)[1][1:] or 'jpeg').lower()
+        format = {'jpg' : 'jpeg'}.get(format, format)
+        has_version = 'version' in query
+
+        cache_key_parts = [path, mode, width, height, quality, format, background]
+        if transform:
+            cache_key_parts.append(transform)
+        cache_key = hashlib.md5(repr(tuple(cache_key_parts))).hexdigest()
         cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
         cache_path = os.path.join(cache_dir, cache_key + '.' + format)
-
         cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
         
         if not cache_mtime or cache_mtime < raw_mtime:
@@ -293,7 +336,13 @@ class Images(object):
             log.info('resizing %r for %s' % (path, query))
             
             img = image.open(path)
-            img = self.resize(img, width=width, height=height, mode=mode, background=background)
+            img = self.resize(img,
+                width=width,
+                height=height,
+                mode=mode,
+                background=background,
+                transform=transform,
+            )
             
             makedirs(cache_dir)
             cache_file = open(cache_path, 'wb')

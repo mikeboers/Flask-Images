@@ -16,13 +16,20 @@ def index():
     width = max(0, min(1000, int(request.args.get('width', 200))))
     height = max(0, min(1000, int(request.args.get('height', 200))))
     background = request.args.get('background', '#000000')
-    return render_template('main.tpl', url=url, width=width, height=height, background=background)
+    transform = request.args.get('transform', '')
+    return render_template('main.tpl',
+        url=url,
+        width=width,
+        height=height,
+        background=background,
+        transform=transform,
+    )
 
 
 @app.route('/direct/<path:url>')
 def direct(url):
     kwargs = {}
-    for key in ('width', 'height', 'mode', 'quality'):
+    for key in ('width', 'height', 'mode', 'quality', 'transform'):
         value = request.args.get(key) or request.args.get(key[0])
         if value is not None:
             value = int(value) if value.isdigit() else value
