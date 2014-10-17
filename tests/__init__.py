@@ -4,7 +4,7 @@ from urlparse import urlsplit, parse_qsl
 import werkzeug as wz
 
 from flask import Flask, url_for, render_template_string
-from flask.ext.images import Images
+from flask.ext.images import Images, resized_img_src
 
 
 class TestCase(unittest.TestCase):

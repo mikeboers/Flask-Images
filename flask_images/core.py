@@ -84,30 +84,16 @@ class Images(object):
         if m:
             
             filename = values.pop('filename')
-            external = values.pop('_external', None)
-            if values.pop('_method', None):
-                raise ValueError('no methods on images')
-            if values.pop('_anchor', None):
-                raise ValueError('no anchors on images')
 
             # This is slightly awkward, but I want to trigger the built-in
             # TypeError if you use the "images.<mode>" method AND provide
             # a "mode" kwarg.
             mode = m.group(1)
             if mode:
-                url = self.build_url(filename, mode=mode, **values)
+                return self.build_url(filename, mode=mode, **values)
             else:
-                url = self.build_url(filename, **values)
+                return self.build_url(filename, **values)
 
-            if external:
-                return '%s://%s%s/%s' % (
-                    request.scheme,
-                    request.host,
-                    request.script_root,
-                    url.lstrip('/')
-                )
-
-            return url
 
         return None
 
@@ -123,6 +109,15 @@ class Images(object):
         norm_path = os.path.normpath(local_path)
         if local_path.replace('://', ':/') != norm_path or norm_path.startswith('../'):
             raise ValueError('path is not normalized')
+
+        external = kwargs.pop('external', None) or kwargs.pop('_external', None)
+        scheme = kwargs.pop('scheme', None)
+        if scheme and not external:
+            raise ValueError('cannot specificy scheme without external=True')
+        if kwargs.get('_anchor'):
+            raise ValueError('images have no _anchor')
+        if kwargs.get('_method'):
+            raise ValueError('images have no _method')
 
         for key in 'background mode width height quality format padding'.split():
             if key in kwargs:
@@ -148,12 +143,22 @@ class Images(object):
         signer = Signer(current_app.secret_key)
         sig = signer.get_signature('%s?%s' % (local_path, query))
 
-        return '%s/%s?%s&s=%s' % (
+        url = '%s/%s?%s&s=%s' % (
             current_app.config['IMAGES_URL'],
             urlquote(local_path),
             query,
             sig,
         )
+
+        if external:
+            url = '%s://%s%s/%s' % (
+                scheme or request.scheme,
+                request.host,
+                request.script_root,
+                url.lstrip('/')
+            )
+
+        return url
         
     def find_img(self, local_path):
         for path_base in current_app.config['IMAGES_PATH']:
