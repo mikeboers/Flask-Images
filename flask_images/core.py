@@ -84,14 +84,30 @@ class Images(object):
         if m:
             
             filename = values.pop('filename')
-            mode = m.group(1)
+            external = values.pop('_external', None)
+            if values.pop('_method', None):
+                raise ValueError('no methods on images')
+            if values.pop('_anchor', None):
+                raise ValueError('no anchors on images')
 
             # This is slightly awkward, but I want to trigger the built-in
             # TypeError if you use the "images.<mode>" method AND provide
             # a "mode" kwarg.
+            mode = m.group(1)
             if mode:
-                return self.build_url(filename, mode=mode, **values)
-            return self.build_url(filename, **values)
+                url = self.build_url(filename, mode=mode, **values)
+            else:
+                url = self.build_url(filename, **values)
+
+            if external:
+                return '%s://%s%s/%s' % (
+                    request.scheme,
+                    request.host,
+                    request.script_root,
+                    url.lstrip('/')
+                )
+
+            return url
 
         return None
 

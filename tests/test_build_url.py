@@ -36,3 +36,10 @@ class TestUrlBuild(TestCase):
 
     def test_too_many_modes(self):
         self.assertRaises(TypeError, url_for, 'images.crop', filename='cc.png', mode='reshape')
+
+    def test_external(self):
+        url = url_for('images', filename='cc.png', width=5, mode='crop', _external=True)
+        parsed_url = urlsplit(url)
+
+        self.assertEqual(parsed_url.scheme, 'http')
+        self.assertEqual(parsed_url.netloc, 'localhost:8000')

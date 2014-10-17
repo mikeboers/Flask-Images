@@ -11,8 +11,10 @@ class TestCase(unittest.TestCase):
 
     def setUp(self):
         self.app = self.create_app()
-        self._ctx = self.app.app_context()
-        self._ctx.push()
+        self.app_ctx = self.app.app_context()
+        self.app_ctx.push()
+        self.req_ctx = self.app.test_request_context('http://localhost:8000/')
+        self.req_ctx.push()
         self.client = self.app.test_client()
 
     def create_app(self):
