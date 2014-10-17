@@ -39,22 +39,24 @@ class TestUrlBuild(TestCase):
 
     def test_external(self):
 
+        netloc = 'localhost:8000' if flask_version >= (0, 10) else 'localhost'
+
         url = url_for('images', filename='cc.png', width=5, mode='crop', _external=True)
         parsed_url = urlsplit(url)
         self.assertEqual(parsed_url.scheme, 'http')
-        self.assertEqual(parsed_url.netloc, 'localhost:8000')
+        self.assertEqual(parsed_url.netloc, netloc)
 
         url = url_for('images', filename='cc.png', width=5, mode='crop', _external=True, scheme='https')
         parsed_url = urlsplit(url)
         self.assertEqual(parsed_url.scheme, 'https')
-        self.assertEqual(parsed_url.netloc, 'localhost:8000')
+        self.assertEqual(parsed_url.netloc, netloc)
 
         url = resized_img_src('cc.png', width=5, mode='crop', external=True)
         parsed_url = urlsplit(url)
         self.assertEqual(parsed_url.scheme, 'http')
-        self.assertEqual(parsed_url.netloc, 'localhost:8000')
+        self.assertEqual(parsed_url.netloc, netloc)
 
         url = resized_img_src('cc.png', width=5, mode='crop', external=True, scheme='https')
         parsed_url = urlsplit(url)
         self.assertEqual(parsed_url.scheme, 'https')
-        self.assertEqual(parsed_url.netloc, 'localhost:8000')
+        self.assertEqual(parsed_url.netloc, netloc)
