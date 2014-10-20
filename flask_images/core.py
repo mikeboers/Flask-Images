@@ -210,18 +210,23 @@ class Images(object):
             if os.path.exists(path):
                 return path
     
-    def get_final_size(self, rel_path, width=None, height=None, mode=None, transform=None, **kw):
-
-        if width and height and mode in (self.MODE_CROP, self.MODE_PAD, self.MODE_RESHAPE, None):
-            return (width, height)
+    def get_final_size(self, rel_path, width=None, height=None, dpi_scale=None, enlarge=True, mode=None, transform=None, **kw):
 
         if transform:
             orig_width, orig_height = transform[1:2]
         else:
             orig_width, orig_height = image.open(self.find_img(rel_path)).size
 
-        width = min(width, orig_width) if width else None
-        height = min(height, orig_height) if height else None
+        enlargement = (
+            max(1, (dpi_scale or 1.0) * width  / orig_width  if width  else 1) *
+            max(1, (dpi_scale or 1.0) * height / orig_height if height else 1)
+        )
+        if not enlarge:
+            width = min(width, orig_width) if width else None
+            height = min(height, orig_height) if height else None
+
+        if width and height and mode in (self.MODE_CROP, self.MODE_PAD, self.MODE_RESHAPE, None):
+            return (width, height, enlargement)
 
         if width and height:
             fit, crop = sorted([
@@ -229,15 +234,15 @@ class Images(object):
                 (orig_width * height // orig_height, height)
             ])
             if mode == self.MODE_FIT:
-                return fit
+                return fit + (enlargement, )
             else:
                 raise ValueError('unknown mode %r' % mode)
 
         if width:
-            return (width, orig_height * width // orig_width)
+            return (width, orig_height * width // orig_width, enlargement)
 
         elif height:
-            return (orig_width * height // orig_height, height)
+            return (orig_width * height // orig_height, height, enlargement)
 
     def resize(self, img, width=None, height=None, mode=None, transform=None, background=None):
         
@@ -266,12 +271,13 @@ class Images(object):
                 image.BILINEAR,
             )
 
-        orig_width, orig_height = img.size
 
+        # Scale down the requested dimensions if we can't satisfy them.
+        orig_width, orig_height = img.size
         width = min(width, orig_width) if width else None
         height = min(height, orig_height) if height else None
         
-        if not img.mode.lower().startswith('rgb'):
+        if not img.mode.upper().startswith('RGB'):
             img = img.convert('RGBA')
         
         if width and height:
@@ -364,7 +370,7 @@ class Images(object):
         mtime = datetime.datetime.utcfromtimestamp(raw_mtime)
         # log.debug('last_modified: %r' % mtime)
         # log.debug('if_modified_since: %r' % request.if_modified_since)
-        if request.if_modified_since and request.if_modified_since >= mtime:
+        if False and request.if_modified_since and request.if_modified_since >= mtime:
             return '', 304
         
         mode = query.get('mode')
@@ -429,18 +435,24 @@ def resized_img_size(path, **kw):
     self = current_app.extensions['images']
     return self.get_final_size(path, **kw)
 
-def resized_img_attrs(path, width=None, height=None, dpi_scale=None, **kw):
+def resized_img_attrs(path, width=None, height=None, dpi_scale=None, enlarge=True, enlarged_quality=None, **kw):
 
     self = current_app.extensions['images']
-    size = self.get_final_size(path, width=width, height=height, **kw)
+    final_width, final_height, enlargement = self.get_final_size(
+        path, width=width, height=height, dpi_scale=dpi_scale, enlarge=enlarge,
+        **kw
+    )
 
     if dpi_scale:
         width = int(width * dpi_scale) if width else None
         height = int(height * dpi_scale) if height else None
 
+    if enlargement > 1 and enlarged_quality:
+        kw['quality'] = enlarged_quality
+
     return {
-        'width': size[0],
-        'height': size[1],
+        'width': final_width,
+        'height': final_height,
         'src': self.build_url(path, width=width, height=height, **kw)
     }
 
