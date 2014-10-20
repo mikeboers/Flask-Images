@@ -180,7 +180,7 @@ class Images(object):
         public_kwargs = (
             (LONG_TO_SHORT.get(k, k), v)
             for k, v in kwargs.iteritems()
-            if not k.startswith('_')
+            if v is not None and not k.startswith('_')
         )
         query = urlencode(sorted(public_kwargs), True)
         signer = Signer(current_app.secret_key)
@@ -204,6 +204,7 @@ class Images(object):
         return url
         
     def find_img(self, local_path):
+        local_path = os.path.normpath(local_path.lstrip('/'))
         for path_base in current_app.config['IMAGES_PATH']:
             path = os.path.join(current_app.root_path, path_base, local_path)
             if os.path.exists(path):
