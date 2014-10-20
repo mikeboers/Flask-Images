@@ -92,8 +92,14 @@ class Images(object):
 
         if hasattr(app, 'add_template_global'): # Flask >= 0.10
             app.add_template_global(resized_img_src)
+            app.add_template_global(resized_img_size)
+            app.add_template_global(resized_img_attrs)
         else:
-            ctx = {'resized_img_src': resized_img_src}
+            ctx = {
+                'resized_img_src': resized_img_src,
+                'resized_img_size': resized_img_size,
+                'resized_img_attrs': resized_img_attrs,
+            }
             app.context_processor(lambda: ctx)
 
 
@@ -203,6 +209,35 @@ class Images(object):
             if os.path.exists(path):
                 return path
     
+    def get_final_size(self, rel_path, width=None, height=None, mode=None, transform=None, **kw):
+
+        if width and height and mode in (self.MODE_CROP, self.MODE_PAD, self.MODE_RESHAPE, None):
+            return (width, height)
+
+        if transform:
+            orig_width, orig_height = transform[1:2]
+        else:
+            orig_width, orig_height = image.open(self.find_img(rel_path)).size
+
+        width = min(width, orig_width) if width else None
+        height = min(height, orig_height) if height else None
+
+        if width and height:
+            fit, crop = sorted([
+                (width, orig_height * width // orig_width),
+                (orig_width * height // orig_height, height)
+            ])
+            if mode == self.MODE_FIT:
+                return fit
+            else:
+                raise ValueError('unknown mode %r' % mode)
+
+        if width:
+            return (width, orig_height * width // orig_width)
+
+        elif height:
+            return (orig_width * height // orig_height, height)
+
     def resize(self, img, width=None, height=None, mode=None, transform=None, background=None):
         
         if transform:
@@ -388,7 +423,28 @@ class Images(object):
         return send_file(cache_path, mimetype=mimetype, cache_timeout=cache_timeout)
 
 
+
+def resized_img_size(path, **kw):
+    self = current_app.extensions['images']
+    return self.get_final_size(path, **kw)
+
+def resized_img_attrs(path, width=None, height=None, dpi_scale=None, **kw):
+
+    self = current_app.extensions['images']
+    size = self.get_final_size(path, width=width, height=height, **kw)
+
+    if dpi_scale:
+        width = int(width * dpi_scale) if width else None
+        height = int(height * dpi_scale) if height else None
+
+    return {
+        'width': size[0],
+        'height': size[1],
+        'src': self.build_url(path, width=width, height=height, **kw)
+    }
+
 def resized_img_src(path, **kw):
-    return current_app.extensions['images'].build_url(path, **kw)
+    self = current_app.extensions['images']
+    return self.build_url(path, **kw)
 
 
