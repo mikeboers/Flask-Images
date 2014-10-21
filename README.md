@@ -66,7 +66,7 @@ app = Flask(__name__)
 app.secret_key = 'monkey'
 images = Images(app)
 ~~~
-- 
+-
 Now, use either the `resized_img_src` function in your templates, or the `images.<mode>` routes in `url_for`.
 
 If used within a view, import with: `from flask.ext.images import resized_img_src, url_for`
