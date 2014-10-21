@@ -217,32 +217,34 @@ class Images(object):
         else:
             orig_width, orig_height = image.open(self.find_img(rel_path)).size
 
+        if width and height:
+
+            if mode in (self.MODE_CROP, self.MODE_PAD, self.MODE_RESHAPE, None):
+                pass
+            elif mode == self.MODE_FIT:
+                fit, crop = sorted([
+                    (width, orig_height * width // orig_width),
+                    (orig_width * height // orig_height, height)
+                ])
+                width, height = fit
+            else:
+                raise ValueError('unknown mode %r' % mode)
+
+        elif width:
+            height = orig_height * width // orig_width
+
+        elif height:
+            width = orig_width * height // orig_height
+
         enlargement = (
             max(1, (dpi_scale or 1.0) * width  / orig_width  if width  else 1) *
             max(1, (dpi_scale or 1.0) * height / orig_height if height else 1)
         )
         if not enlarge:
-            width = min(width, orig_width) if width else None
-            height = min(height, orig_height) if height else None
+            width = min(width, orig_width)
+            height = min(height, orig_height)
 
-        if width and height and mode in (self.MODE_CROP, self.MODE_PAD, self.MODE_RESHAPE, None):
-            return (width, height, enlargement)
-
-        if width and height:
-            fit, crop = sorted([
-                (width, orig_height * width // orig_width),
-                (orig_width * height // orig_height, height)
-            ])
-            if mode == self.MODE_FIT:
-                return fit + (enlargement, )
-            else:
-                raise ValueError('unknown mode %r' % mode)
-
-        if width:
-            return (width, orig_height * width // orig_width, enlargement)
-
-        elif height:
-            return (orig_width * height // orig_height, height, enlargement)
+        return width, height, enlargement
 
     def resize(self, img, width=None, height=None, mode=None, transform=None, background=None):
         
