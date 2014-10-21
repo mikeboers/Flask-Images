@@ -66,8 +66,10 @@ app = Flask(__name__)
 app.secret_key = 'monkey'
 images = Images(app)
 ~~~
-
+- 
 Now, use either the `resized_img_src` function in your templates, or the `images.<mode>` routes in `url_for`.
+
+If used within a view, import with: `from flask.ext.images import resized_img_src, url_for`
 
 
 Configuration
@@ -76,8 +78,8 @@ Configuration
 Configure Flask-Images via the following keys in the Flask config:
 
 - `IMAGES_URL`: The url to mount Flask-Images to; defaults to `'/imgsizer'`.
-- `IMAGES_NAME`: The name of the registered endpoint.
-- `IMAGES_PATH`: The paths to search relative to `app.root_path` for images.
+- `IMAGES_NAME`: The name of the registered endpoint used in url_for.
+- `IMAGES_PATH`: A list of paths to search relative to `app.root_path` for images, for example `['static/uploads']`
 - `IMAGES_CACHE`: Where to store resized images; defaults to `'/tmp/flask-images'`.
 - `IMAGES_MAX_AGE`: How long to tell the browser to cache missing results; defaults to `3600`. Usually, we will set a max age of one year, and cache bust via the modification time of the source image.
 
