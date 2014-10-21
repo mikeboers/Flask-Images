@@ -16,9 +16,12 @@ import re
 import struct
 import sys
 
-from PIL import Image as image
+from PIL import Image
 from flask import request, current_app, send_file, abort
 from itsdangerous import Signer, constant_time_compare
+
+from . import modes
+from .size import Size
 
 
 log = logging.getLogger(__name__)
@@ -44,6 +47,7 @@ ALLOWED_SCHEMES = set(('http', 'https', 'ftp'))
 LONG_TO_SHORT = dict(
     background='b',
     cache='c',
+    enlarge='e',
     format='f',
     height='h',
     mode='m',
@@ -57,20 +61,16 @@ LONG_TO_SHORT = dict(
 SHORT_TO_LONG = dict((v, k) for k, v in LONG_TO_SHORT.iteritems())
 
 TRANSFORM_AXIS = {
-    image.EXTENT: (0, 1, 0, 1),
-    image.AFFINE: (None, None, 0, None, None, 1),
-    image.QUAD: (0, 1, 0, 1, 0, 1, 0, 1),
-    image.PERSPECTIVE: (None, None, None, None, None, None, None, None),
-    # image.MESH: ???
+    Image.EXTENT: (0, 1, 0, 1),
+    Image.AFFINE: (None, None, 0, None, None, 1),
+    Image.QUAD: (0, 1, 0, 1, 0, 1, 0, 1),
+    Image.PERSPECTIVE: (None, None, None, None, None, None, None, None),
+    # Image.MESH: ???
 }
+
 
 class Images(object):
     
-    MODE_FIT = 'fit'
-    MODE_CROP = 'crop'
-    MODE_PAD = 'pad'
-    MODE_RESHAPE = 'reshape'
-    MODES = (MODE_FIT, MODE_CROP, MODE_PAD, MODE_RESHAPE)
     
     def __init__(self, app=None):
         if app is not None:
@@ -108,7 +108,7 @@ class Images(object):
         # See if we were asked for "images" or "images.<mode>".
         m = re.match(r'^%s(?:\.(%s))?$' % (
             re.escape(current_app.config['IMAGES_NAME']),
-            '|'.join(re.escape(mode) for mode in self.MODES)
+            '|'.join(re.escape(mode) for mode in modes.ALL)
         ), endpoint)
         if m:
             
@@ -162,12 +162,17 @@ class Images(object):
             if abs_path:
                 kwargs['version'] = encode_int(int(os.path.getmtime(abs_path)))
         
-        # Prep the cache
+        # Prep the cache flag, which defaults to True.
         cache = kwargs.pop('cache', True)
         if not cache:
             kwargs['cache'] = ''
 
-        # Prep the transform.
+        # Prep the enlarge flag, which defaults to False.
+        enlarge = kwargs.pop('enlarge', False)
+        if enlarge:
+            kwargs['enlarge'] = '1'
+
+        # Prep the transform, which is a set of delimited strings.
         transform = kwargs.get('transform')
         if transform:
             if isinstance(transform, basestring):
@@ -210,46 +215,21 @@ class Images(object):
             if os.path.exists(path):
                 return path
     
-    def get_final_size(self, rel_path, width=None, height=None, dpi_scale=None, enlarge=True, mode=None, transform=None, **kw):
+    def calculate_size(self, path, **kw):
+        return Size(path=self.find_img(path), **kw)
 
-        if transform:
-            orig_width, orig_height = transform[1:2]
-        else:
-            orig_width, orig_height = image.open(self.find_img(rel_path)).size
-
-        if width and height:
-
-            if mode in (self.MODE_CROP, self.MODE_PAD, self.MODE_RESHAPE, None):
-                pass
-            elif mode == self.MODE_FIT:
-                fit, crop = sorted([
-                    (width, orig_height * width // orig_width),
-                    (orig_width * height // orig_height, height)
-                ])
-                width, height = fit
-            else:
-                raise ValueError('unknown mode %r' % mode)
-
-        elif width:
-            height = orig_height * width // orig_width
-
-        elif height:
-            width = orig_width * height // orig_height
-
-        enlargement = (
-            max(1, (dpi_scale or 1.0) * width  / orig_width  if width  else 1) *
-            max(1, (dpi_scale or 1.0) * height / orig_height if height else 1)
-        )
-        if not enlarge:
-            width = min(width, orig_width)
-            height = min(height, orig_height)
-
-        return width, height, enlargement
-
-    def resize(self, img, width=None, height=None, mode=None, transform=None, background=None):
+    def resize(self, image, background=None, **kw):
         
-        if transform:
-            flag = getattr(image, transform[0].upper())
+        size = Size(image=image, **kw)
+
+        # Get into the right colour space.
+        if not image.mode.upper().startswith('RGB'):
+            image = image.convert('RGBA')
+
+        # Apply any requested transform.
+        if size.transform:
+            transform = self.transform
+            flag = getattr(Image, transform[0].upper())
             try:
                 axis = (None, 0, 1) + TRANSFORM_AXIS[flag]
             except KeyError:
@@ -262,67 +242,48 @@ class Images(object):
                     if v.endswith('%'):
                         if axis[i] is None:
                             raise ValueError('unknown dimension for %s value %d' % (transform[0], i))
-                        transform[i] = img.size[axis[i]] * float(v[:-1]) / 100
+                        transform[i] = image.size[axis[i]] * float(v[:-1]) / 100
                     else:
                         transform[i] = float(v)
-            print transform
-            img = img.transform(
-                (int(transform[1] or img.size[0]), int(transform[2] or img.size[1])),
+            image = image.transform(
+                (int(transform[1] or image.size[0]), int(transform[2] or image.size[1])),
                 flag,
                 transform[3:],
-                image.BILINEAR,
+                Image.BILINEAR,
             )
-
-
-        # Scale down the requested dimensions if we can't satisfy them.
-        orig_width, orig_height = img.size
-        width = min(width, orig_width) if width else None
-        height = min(height, orig_height) if height else None
         
-        if not img.mode.upper().startswith('RGB'):
-            img = img.convert('RGBA')
+        # Handle the easy cases.
+        if size.mode in (modes.RESHAPE, None) or size.req_width is None or size.req_height is None:
+            return image.resize((size.width, size.height), Image.ANTIALIAS)
+
+        if size.mode not in (modes.FIT, modes.PAD, modes.CROP):
+            raise ValueError('unknown mode %r' % size.mode)
+
+        if image.size != (size.op_width, size.op_height):
+            image = image.resize((size.op_width, size.op_height), Image.ANTIALIAS)
         
-        if width and height:
-    
-            fit, crop = sorted([
-                (width, orig_height * width // orig_width),
-                (orig_width * height // orig_height, height)
-            ])
-    
-            if mode == self.MODE_FIT or mode == self.MODE_PAD:
-                img = img.resize(fit, image.ANTIALIAS)
-                
-                if mode == self.MODE_PAD:
-                    pad_color = str(background or 'black')
-                    back = image.new('RGBA', (width, height), pad_color)
-                    back.paste(img, (
-                        (width  - fit[0]) // 2,
-                        (height - fit[1]) // 2
-                    ))
-                    img = back
+        if size.mode == modes.FIT:
+            return image
+
+        elif size.mode == modes.PAD:
+            pad_color = str(background or 'black')
+            padded = Image.new('RGBA', (size.width, size.height), pad_color)
+            padded.paste(image, (
+                (size.width  - size.op_width ) // 2,
+                (size.height - size.op_height) // 2
+            ))
+            return padded
             
-            elif mode == self.MODE_CROP:
-                dx = (crop[0] - width) // 2
-                dy = (crop[1] - height) // 2
-                img = img.resize(crop, image.ANTIALIAS).crop(
-                    (dx, dy, dx + width, dy + height)
-                )
+        elif size.mode == modes.CROP:
+
+            dx = (size.op_width  - size.width ) // 2
+            dy = (size.op_height - size.height) // 2
+            return image.crop(
+                (dx, dy, dx + size.width, dy + size.height)
+            )
             
-            elif mode == self.MODE_RESHAPE or mode is None:
-                img = img.resize((width, height), image.ANTIALIAS)
-
-            else:
-                raise ValueError('unsupported mode %r' % mode)
-        
-        elif width:
-            height = orig_height * width // orig_width
-            img = img.resize((width, height), image.ANTIALIAS)
-
-        elif height:
-            width = orig_width * height // orig_height
-            img = img.resize((width, height), image.ANTIALIAS)
-        
-        return img
+        else:
+            raise RuntimeError('unhandled mode %r' % size.mode)
     
 
     def handle_request(self, path):
@@ -391,6 +352,7 @@ class Images(object):
         format = {'jpg' : 'jpeg'}.get(format, format)
         has_version = 'version' in query
         use_cache = query.get('cache', True)
+        enlarge = query.get('enlarge', False)
 
         if use_cache:
             cache_key_parts = [path, mode, width, height, quality, format, background]
@@ -407,18 +369,19 @@ class Images(object):
         if not use_cache or not cache_mtime or cache_mtime < raw_mtime:
             
             log.info('resizing %r for %s' % (path, query))
-            img = image.open(path)
-            img = self.resize(img,
-                width=width,
+            image = Image.open(path)
+            image = self.resize(image,
+                background=background,
+                enlarge=enlarge,
                 height=height,
                 mode=mode,
-                background=background,
                 transform=transform,
+                width=width,
             )
 
             if not use_cache:
                 fh = StringIO()
-                img.save(fh, format, quality=quality)
+                image.save(fh, format, quality=quality)
                 return fh.getvalue(), 200, [
                     ('Content-Type', mimetype),
                     ('Cache-Control', cache_timeout),
@@ -426,7 +389,7 @@ class Images(object):
             
             makedirs(cache_dir)
             cache_file = open(cache_path, 'wb')
-            img.save(cache_file, format, quality=quality)
+            image.save(cache_file, format, quality=quality)
             cache_file.close()
         
         return send_file(cache_path, mimetype=mimetype, cache_timeout=cache_timeout)
@@ -435,27 +398,15 @@ class Images(object):
 
 def resized_img_size(path, **kw):
     self = current_app.extensions['images']
-    return self.get_final_size(path, **kw)
+    return self.calculate_size(path, **kw)
 
-def resized_img_attrs(path, width=None, height=None, dpi_scale=None, enlarge=True, enlarged_quality=None, **kw):
-
+def resized_img_attrs(path, dpi_scale=None, **kw):
     self = current_app.extensions['images']
-    final_width, final_height, enlargement = self.get_final_size(
-        path, width=width, height=height, dpi_scale=dpi_scale, enlarge=enlarge,
-        **kw
-    )
-
-    if dpi_scale:
-        width = int(width * dpi_scale) if width else None
-        height = int(height * dpi_scale) if height else None
-
-    if enlargement > 1 and enlarged_quality:
-        kw['quality'] = enlarged_quality
-
+    size = self.calculate_size(path, **kw)
     return {
-        'width': final_width,
-        'height': final_height,
-        'src': self.build_url(path, width=width, height=height, **kw)
+        'width': size.width,
+        'height': size.height,
+        'src': self.build_url(path, **kw)
     }
 
 def resized_img_src(path, **kw):
