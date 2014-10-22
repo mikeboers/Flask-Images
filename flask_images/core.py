@@ -423,17 +423,21 @@ def resized_img_attrs(path, retina=None, width=None, height=None, enlarge=False,
             _shortcut=True,
             **kw
         )
-        if (not enlarge or not retina_size.needs_enlarge) and retina_quality:
-            kw['quality'] = retina_quality
 
         # If the larger size works.
         if enlarge or not retina_size.needs_enlarge:
             image = retina_size
+            if retina_quality:
+                kw['quality'] = retina_quality
         else:
             retina = False
 
     return {
-        'dataRetina': retina,
+
+        'dataRetinaScale': retina,
+        'dataOriginalWidth': image.image_width,
+        'dataOriginalHeight': image.image_height,
+
         'width': page.width,
         'height': page.height,
         'src': self.build_url(
@@ -443,6 +447,7 @@ def resized_img_attrs(path, retina=None, width=None, height=None, enlarge=False,
             enlarge=enlarge,
             **kw
         ),
+    
     }
 
 def resized_img_src(path, **kw):
