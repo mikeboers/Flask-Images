@@ -6,6 +6,7 @@ from urllib import urlencode, quote as urlquote
 from urllib2 import urlopen
 from urlparse import urlparse
 import base64
+import cgi
 import datetime
 import errno
 import hashlib
@@ -94,11 +95,13 @@ class Images(object):
             app.add_template_global(resized_img_src)
             app.add_template_global(resized_img_size)
             app.add_template_global(resized_img_attrs)
+            app.add_template_global(resized_img_tag)
         else:
             ctx = {
                 'resized_img_src': resized_img_src,
                 'resized_img_size': resized_img_size,
                 'resized_img_attrs': resized_img_attrs,
+                'resized_img_tag': resized_img_tag,
             }
             app.context_processor(lambda: ctx)
 
@@ -434,21 +437,27 @@ def resized_img_attrs(path, retina=None, width=None, height=None, enlarge=False,
 
     return {
 
-        'dataRetinaScale': retina,
-        'dataOriginalWidth': image.image_width,
-        'dataOriginalHeight': image.image_height,
+        'data-retina-scale': retina,
+        'data-original-width': image.image_width,
+        'data-original-height': image.image_height,
 
         'width': page.width,
         'height': page.height,
         'src': self.build_url(
             path,
-            width=int(image.req_width),
-            height=int(image.req_height),
+            width=int(image.req_width) if image.req_width else image.req_width,
+            height=int(image.req_height) if image.req_height else image.req_height,
             enlarge=enlarge,
             **kw
         ),
     
     }
+
+
+def resized_img_tag(path, **kw):
+    attrs = resized_img_attrs(path, **kw)
+    return '<img %s/>' % ' '.join('%s="%s"' % (k, cgi.escape(str(v))) for k, v in sorted(attrs.iteritems()))
+
 
 def resized_img_src(path, **kw):
     self = current_app.extensions['images']
