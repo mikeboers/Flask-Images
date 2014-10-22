@@ -22,7 +22,7 @@ from flask import request, current_app, send_file, abort
 from itsdangerous import Signer, constant_time_compare
 
 from . import modes
-from .size import Size
+from .size import ImageSize
 
 
 log = logging.getLogger(__name__)
@@ -219,11 +219,11 @@ class Images(object):
                 return path
     
     def calculate_size(self, path, **kw):
-        return Size(path=self.find_img(path), **kw)
+        return ImageSize(path=self.find_img(path), **kw)
 
     def resize(self, image, background=None, **kw):
         
-        size = Size(image=image, **kw)
+        size = ImageSize(image=image, **kw)
 
         # Get into the right colour space.
         if not image.mode.upper().startswith('RGB'):
@@ -403,7 +403,7 @@ def resized_img_size(path, **kw):
     self = current_app.extensions['images']
     return self.calculate_size(path, **kw)
 
-def resized_img_attrs(path, retina=None, width=None, height=None, enlarge=False, retina_quality=None, **kw):
+def resized_img_attrs(path, hidpi=None, width=None, height=None, enlarge=False, hidpi_quality=None, **kw):
     
     self = current_app.extensions['images']
 
@@ -416,28 +416,31 @@ def resized_img_attrs(path, retina=None, width=None, height=None, enlarge=False,
         **kw
     )
 
-    if retina:
+    if hidpi:
 
-        retina_size = self.calculate_size(
+        hidpi_size = self.calculate_size(
             path,
-            width=retina * width if width else None,
-            height=retina * height if height else None,
+            width=hidpi * width if width else None,
+            height=hidpi * height if height else None,
             enlarge=enlarge,
             _shortcut=True,
             **kw
         )
 
         # If the larger size works.
-        if enlarge or not retina_size.needs_enlarge:
-            image = retina_size
-            if retina_quality:
-                kw['quality'] = retina_quality
+        if enlarge or not hidpi_size.needs_enlarge:
+            image = hidpi_size
+            if hidpi_quality:
+                kw['quality'] = hidpi_quality
+            else:
+                kw.setdefault('quality', 60)
+        
         else:
-            retina = False
+            hidpi = False
 
     return {
 
-        'data-retina-scale': retina,
+        'data-hidpi-scale': hidpi,
         'data-original-width': image.image_width,
         'data-original-height': image.image_height,
 

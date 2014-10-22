@@ -5,7 +5,7 @@ from PIL import Image
 from . import modes
 
 
-class Size(object):
+class ImageSize(object):
 
     @property
     def image(self):

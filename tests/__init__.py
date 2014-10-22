@@ -4,8 +4,7 @@ from urlparse import urlsplit, parse_qsl
 import werkzeug as wz
 
 from flask import Flask, url_for, render_template_string
-from flask.ext.images import Images, resized_img_src
-from flask.ext.images.size import Size
+from flask.ext.images import *
 import flask
 
 flask_version = tuple(map(int, flask.__version__.split('.')))
