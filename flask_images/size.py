@@ -11,7 +11,9 @@ class Size(object):
             self._image = Image.open(self.path)
         return self._image
 
-    def __init__(self, path=None, image=None, width=None, height=None, enlarge=True, mode=None, transform=None, **kw):
+    def __init__(self, path=None, image=None, width=None, height=None,
+        enlarge=True, mode=None, transform=None, _shortcut=False, **kw
+    ):
 
         # Inputs.
         self.__dict__.update(kw)
@@ -29,6 +31,9 @@ class Size(object):
         self.height = height
         self.op_width = None
         self.op_height = None
+
+        if _shortcut and width and height and enlarge and mode in (modes.RESHAPE, modes.CROP, None):
+            return
 
         # Source the original image dimensions.
         if self.transform:

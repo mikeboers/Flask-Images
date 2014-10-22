@@ -333,7 +333,7 @@ class Images(object):
         mtime = datetime.datetime.utcfromtimestamp(raw_mtime)
         # log.debug('last_modified: %r' % mtime)
         # log.debug('if_modified_since: %r' % request.if_modified_since)
-        if False and request.if_modified_since and request.if_modified_since >= mtime:
+        if request.if_modified_since and request.if_modified_since >= mtime:
             return '', 304
         
         mode = query.get('mode')
@@ -400,13 +400,46 @@ def resized_img_size(path, **kw):
     self = current_app.extensions['images']
     return self.calculate_size(path, **kw)
 
-def resized_img_attrs(path, dpi_scale=None, **kw):
+def resized_img_attrs(path, retina=None, width=None, height=None, enlarge=False, retina_quality=None, **kw):
+    
     self = current_app.extensions['images']
-    size = self.calculate_size(path, **kw)
+
+    page = image = self.calculate_size(
+        path,
+        width=width,
+        height=height,
+        enlarge=enlarge,
+        _shortcut=True,
+        **kw
+    )
+
+    if retina:
+
+        retina_size = self.calculate_size(
+            path,
+            width=retina * width if width else None,
+            height=retina * height if height else None,
+            enlarge=enlarge,
+            _shortcut=True,
+            **kw
+        )
+        if (not enlarge or not retina_size.needs_enlarge) and retina_quality:
+            kw['quality'] = retina_quality
+
+        # If the larger size works.
+        if enlarge or not retina_size.needs_enlarge:
+            image = retina_size
+
     return {
-        'width': size.width,
-        'height': size.height,
-        'src': self.build_url(path, **kw)
+        'width': page.width,
+        'height': page.height,
+        'src': self.build_url(
+            path,
+            width=image.req_width,
+            height=image.req_height,
+            enlarge=enlarge,
+            **kw
+        ),
     }
 
 def resized_img_src(path, **kw):
