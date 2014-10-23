@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+docs="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
+cd "$docs/_build/html"
+
+if [[ ! -d .git ]]; then
+    git init .
+fi
+
+touch .nojekyll
+
+git add .
+git commit -m "$(date)"
+
+git push -f git@github.com:mikeboers/Flask-Images.git HEAD:gh-pages
+
