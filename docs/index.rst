@@ -34,7 +34,8 @@ Behaviour is specified with keyword arguments:
 
     - ``'fit'``: as large as possible while fitting within the given dimensions;
 
-    - ``'crop'``: as large as possible while fitting into the given aspect ratio;
+    - ``'crop'``: as large as possible while fitting into the given aspect ratio,
+      e.g.: |crop-example|
 
     - ``'pad'``: as large as possible while fitting within the given dimensions,
       and padding to thegiven dimensions with a background colour;
@@ -58,6 +59,8 @@ Behaviour is specified with keyword arguments:
 
 - ``hidpi`` and ``hidpi_quality``: TBD.
 
+
+.. |crop-example| image:: https://flask-images.herokuapp.com/imgsizer/_?h=50&m=crop&u=https%3A%2F%2Ffarm4.staticflickr.com%2F3540%2F5753968652_a28184e5fb.jpg&w=400&x=&s=jXZSUvAWKkXotNOUi0Ap1ceWcdE
 
 Installation
 ------------
