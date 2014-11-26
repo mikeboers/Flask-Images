@@ -423,7 +423,7 @@ def resized_img_size(path, **kw):
     self = current_app.extensions['images']
     return self.calculate_size(path, **kw)
 
-def resized_img_attrs(path, hidpi=None, width=None, height=None, enlarge=False, hidpi_quality=None, **kw):
+def resized_img_attrs(path, hidpi=None, width=None, height=None, enlarge=False, **kw):
     
     self = current_app.extensions['images']
 
@@ -450,10 +450,13 @@ def resized_img_attrs(path, hidpi=None, width=None, height=None, enlarge=False, 
         # If the larger size works.
         if enlarge or not hidpi_size.needs_enlarge:
             image = hidpi_size
-            if hidpi_quality:
-                kw['quality'] = hidpi_quality
-            else:
-                kw.setdefault('quality', 60)
+
+            for k, v in kw.items():
+                if k.startswith('hidpi_'):
+                    kw.pop(k)
+                    kw[k[6:]] = v
+
+            kw.setdefault('quality', 60)
         
         else:
             hidpi = False
