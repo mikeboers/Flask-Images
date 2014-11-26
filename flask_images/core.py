@@ -17,7 +17,7 @@ import re
 import struct
 import sys
 
-from PIL import Image
+from PIL import Image, ImageFilter
 from flask import request, current_app, send_file, abort
 from itsdangerous import Signer, constant_time_compare
 
@@ -57,6 +57,7 @@ LONG_TO_SHORT = dict(
     url='u',
     version='v',
     width='w',
+    sharpen='usm',
     # signature -> 's', but should not be here.
 )
 SHORT_TO_LONG = dict((v, k) for k, v in LONG_TO_SHORT.iteritems())
@@ -288,6 +289,17 @@ class Images(object):
         else:
             raise RuntimeError('unhandled mode %r' % size.mode)
     
+    def post_process(self, image, sharpen=None):
+
+        if sharpen:
+            assert len(sharpen) == 3, 'unsharp-mask has 3 parameters'
+            image = image.filter(ImageFilter.UnsharpMask(
+                float(sharpen[0]),
+                int(sharpen[1]),
+                int(sharpen[2]),
+            ))
+
+        return image
 
     def handle_request(self, path):
 
@@ -357,10 +369,15 @@ class Images(object):
         use_cache = query.get('cache', True)
         enlarge = query.get('enlarge', False)
 
+        sharpen = query.get('sharpen')
+        sharpen = re.split(r'[;,_/ ]', sharpen) if sharpen else None
+
         if use_cache:
             cache_key_parts = [path, mode, width, height, quality, format, background]
-            if transform:
+            if transform or sharpen:
                 cache_key_parts.append(transform)
+            if sharpen:
+                cache_key_parts.append(sharpen)
             cache_key = hashlib.md5(repr(tuple(cache_key_parts))).hexdigest()
             cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
             cache_path = os.path.join(cache_dir, cache_key + '.' + format)
@@ -380,6 +397,9 @@ class Images(object):
                 mode=mode,
                 transform=transform,
                 width=width,
+            )
+            image = self.post_process(image,
+                sharpen=sharpen,
             )
 
             if not use_cache:

@@ -14,7 +14,7 @@ class ImageSize(object):
         return self._image
 
     def __init__(self, path=None, image=None, width=None, height=None,
-        enlarge=True, mode=None, transform=None, _shortcut=False, **kw
+        enlarge=True, mode=None, transform=None, sharpen=None, _shortcut=False, **kw
     ):
 
         # Inputs.
@@ -26,6 +26,7 @@ class ImageSize(object):
         self.enlarge = bool(enlarge)
         self.mode = mode
         self.transform = transform
+        self.sharpen = sharpen
 
         self.image_width = self.image_height = None
         
