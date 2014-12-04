@@ -1,3 +1,11 @@
+2.1.0
+-----
+- Retina/HiDPI support (still alpha; the API is subject to change).
+- Transformation support (still alpha; the API is subject to change).
+- `url_for(..., _external=True)` works.
+- `enlarge=False` will not enlarge images.
+- `resized_img_attrs(...)` to calculate final width and height.
+
 2.0.0
 -----
 - INCOMPATIBILITY: Many things moved to flask.ext.images.core; `Images` and
