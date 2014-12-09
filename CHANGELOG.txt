@@ -1,3 +1,7 @@
+2.1.1
+-----
+- Fix for Cache-Control header to be a string (as all headers should be).
+
 2.1.0
 -----
 - Retina/HiDPI support (still alpha; the API is subject to change).
