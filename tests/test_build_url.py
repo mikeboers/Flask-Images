@@ -60,3 +60,8 @@ class TestUrlBuild(TestCase):
         parsed_url = urlsplit(url)
         self.assertEqual(parsed_url.scheme, 'https')
         self.assertEqual(parsed_url.netloc, netloc)
+
+    def test_no_cache(self):
+        url = url_for('images.crop', filename='cc.png', width=5, cache=False)
+        response = self.client.get(url)
+        self.assert200(response)

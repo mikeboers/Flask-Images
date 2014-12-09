@@ -407,7 +407,7 @@ class Images(object):
                 image.save(fh, format, quality=quality)
                 return fh.getvalue(), 200, [
                     ('Content-Type', mimetype),
-                    ('Cache-Control', cache_timeout),
+                    ('Cache-Control', str(cache_timeout)),
                 ]
             
             makedirs(cache_dir)
