@@ -23,6 +23,7 @@ from itsdangerous import Signer, constant_time_compare
 
 from . import modes
 from .size import ImageSize
+from .transform import Transform
 
 
 log = logging.getLogger(__name__)
@@ -62,13 +63,7 @@ LONG_TO_SHORT = dict(
 )
 SHORT_TO_LONG = dict((v, k) for k, v in LONG_TO_SHORT.iteritems())
 
-TRANSFORM_AXIS = {
-    Image.EXTENT: (0, 1, 0, 1),
-    Image.AFFINE: (None, None, 0, None, None, 1),
-    Image.QUAD: (0, 1, 0, 1, 0, 1, 0, 1),
-    Image.PERSPECTIVE: (None, None, None, None, None, None, None, None),
-    # Image.MESH: ???
-}
+
 
 
 class Images(object):
@@ -181,9 +176,9 @@ class Images(object):
         if transform:
             if isinstance(transform, basestring):
                 transform = re.split(r'[,;:_ ]', transform)
-            # This is a strange character, but we won't be using it and it
-            # doesn't escape.
-            kwargs['transform'] = '_'.join(map(str, transform))
+            # We replace delimiters with underscores, and percent with p, since
+            # these won't need escaping.
+            kwargs['transform'] = '_'.join(str(x).replace('%', 'p') for x in transform)
 
         # Sign the query.
         public_kwargs = (
@@ -232,29 +227,7 @@ class Images(object):
 
         # Apply any requested transform.
         if size.transform:
-            transform = self.transform
-            flag = getattr(Image, transform[0].upper())
-            try:
-                axis = (None, 0, 1) + TRANSFORM_AXIS[flag]
-            except KeyError:
-                raise ValueError('unknown transform %r' % transform[0])
-            if len(transform) != len(axis):
-                raise ValueError('expected %d values. got %d' % (len(axis), len(transform)))
-            for i in xrange(1, len(transform)):
-                v = transform[i]
-                if isinstance(v, basestring):
-                    if v.endswith('%'):
-                        if axis[i] is None:
-                            raise ValueError('unknown dimension for %s value %d' % (transform[0], i))
-                        transform[i] = image.size[axis[i]] * float(v[:-1]) / 100
-                    else:
-                        transform[i] = float(v)
-            image = image.transform(
-                (int(transform[1] or image.size[0]), int(transform[2] or image.size[1])),
-                flag,
-                transform[3:],
-                Image.BILINEAR,
-            )
+            image = Transform(size.transform, image.size).apply(image)
         
         # Handle the easy cases.
         if size.mode in (modes.RESHAPE, None) or size.req_width is None or size.req_height is None:
@@ -384,6 +357,7 @@ class Images(object):
                 cache_key_parts.append(('sharpen', sharpen))
             if enlarge:
                 cache_key_parts.append(('enlarge', enlarge))
+
             cache_key = hashlib.md5(repr(tuple(cache_key_parts))).hexdigest()
             cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
             cache_path = os.path.join(cache_dir, cache_key + '.' + format)

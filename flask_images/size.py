@@ -3,13 +3,14 @@ from __future__ import division
 from PIL import Image
 
 from . import modes
+from .transform import Transform
 
 
 class ImageSize(object):
 
     @property
     def image(self):
-        if not self._image:
+        if not self._image and self.path:
             self._image = Image.open(self.path)
         return self._image
 
@@ -42,7 +43,9 @@ class ImageSize(object):
 
         # Source the original image dimensions.
         if self.transform:
-            self.image_width, self.image_height = self.transform[1:3]
+            self.image_width, self.image_height = Transform(self.transform,
+                self.image.size if self.image else (width, height)
+            ).size
         else:
             self.image_width, self.image_height = self.image.size
 
