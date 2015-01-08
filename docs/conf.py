@@ -14,8 +14,8 @@ master_doc = 'index'
 project = u'Flask-Images'
 copyright = u'2014, Mike Boers'
 
-version = '2.0'
-release = '2.0'
+version = '2.1'
+release = '2.1.1'
 
 
 exclude_patterns = ['_build']

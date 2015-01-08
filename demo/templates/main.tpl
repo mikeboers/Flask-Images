@@ -34,7 +34,7 @@
         <label>Width: <input name="width" size="3" value="{{ width }}" /></label><br/>
         <label>Height: <input name="height" size="3" value="{{ height }}" /></label><br/>
         <label>Background: <input name="background" type="color" size="7" value="{{ background }}" /></label><br/>
-
+        <label>Enlarge: <input name="enlarge" type="checkbox" {{ 'checked' if enlarge else '' }}/></label><br />
         <input type="submit" />
     </form>
 
@@ -43,17 +43,47 @@
     <table>
         <tr>
             <td>width={{ width }}
-            <td><img src="{{ url_for('images', filename=url, transform=transform, width=width, quality=90) }}" />
+            <td><img src="{{ url_for('images', filename=url,
+                transform=transform,
+                enlarge=enlarge,
+                width=width,
+                quality=90,
+            ) }}" />
         <tr>
             <td>width={{ width }}<br />height={{ height }}
-            <td><img src="{{ url_for('images', filename=url, transform=transform, width=width, height=height, quality=90) }}" />
+            <td><img src="{{ url_for('images', filename=url,
+                transform=transform,
+                enlarge=enlarge,
+                width=width,
+                height=height,
+                quality=90,
+            ) }}" />
         <tr>
             <td>width={{ width }}<br />height={{ height }}<br />mode='crop'
-            <td><img src="{{ url_for('images.crop', filename=url, transform=transform, width=width, height=height, quality=90) }}" />
+            <td><img src="{{ url_for('images.crop', filename=url,
+                transform=transform,
+                enlarge=enlarge,
+                width=width,
+                height=height,
+                quality=90,
+            ) }}" />
         <tr>
             <td>width={{ width }}<br />height={{ height }}<br />mode='fit'
-            <td><img src="{{ url_for('images.fit', filename=url, transform=transform, width=width, height=height, quality=90) }}" />
+            <td><img src="{{ url_for('images.fit', filename=url,
+                transform=transform,
+                enlarge=enlarge,
+                width=width,
+                height=height,
+                quality=90,
+            ) }}" />
         <tr>
             <td>width={{ width }}<br />height={{ height }}<br />mode='pad'
-            <td><img src="{{ url_for('images.pad', filename=url, transform=transform, width=width, height=height, background=background, quality=90) }}" />
+            <td><img src="{{ url_for('images.pad', filename=url,
+                transform=transform,
+                enlarge=enlarge,
+                width=width,
+                height=height,
+                background=background,
+                quality=90,
+            ) }}" />
     {% endif %}

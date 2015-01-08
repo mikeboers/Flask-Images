@@ -17,12 +17,14 @@ def index():
     height = max(0, min(1000, int(request.args.get('height', 200))))
     background = request.args.get('background', '#000000')
     transform = request.args.get('transform', '')
+    enlarge = bool(request.args.get('enlarge'))
     return render_template('main.tpl',
         url=url,
         width=width,
         height=height,
         background=background,
         transform=transform,
+        enlarge=enlarge,
     )
 
 

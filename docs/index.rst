@@ -34,8 +34,7 @@ Behaviour is specified with keyword arguments:
 
     - ``'fit'``: as large as possible while fitting within the given dimensions;
 
-    - ``'crop'``: as large as possible while fitting into the given aspect ratio,
-      e.g.: |crop-example|
+    - ``'crop'``: as large as possible while fitting into the given aspect ratio;
 
     - ``'pad'``: as large as possible while fitting within the given dimensions,
       and padding to thegiven dimensions with a background colour;
@@ -45,22 +44,38 @@ Behaviour is specified with keyword arguments:
 - ``width`` and ``height``: pixel dimensions; at least one is required, but
   both are required for most modes.
 
-- ``format``: The file extension to use (as accepted by PIL); defaults to the
+- ``format``: The file extension to use (`as accepted by PIL <http://effbot.org/imagingbook/formats.htm>`_ (or `Pillow <https://pillow.readthedocs.org/>`_)); defaults to the
   input image's extension.
 
-- ``quality``: JPEG quality; defaults to `75`.
+- ``quality``: JPEG quality (no effect on non-JPEG images); defaults to `75`.
 
-- ``background``: Background colour for padding; currently only accepts
-  `'white'` and defaults to black.
+- ``background``: Background colour for ``pad`` mode. Expressed via via
+  CSS names (e.g. ``"black"``), hexadecimal (e.g. ``"#ff8800"``), or
+  `anything else accepted by PIL <http://effbot.org/imagingbook/imagecolor.htm>`_.
+  Defaults to ``"black"``.
 
-- ``enlarge``: TBD.
+- ``enlarge``: Should the image be enlarged to satisfy requested dimensions? E.g.
+  If you specify ``mode="crop", width=400, height=400, enlarge=True``, but the
+  image is smaller than 400x400, it will be enlarged to fill that requested size. 
+  Defaults to ``False``.
 
-- ``transform``: TBD.
+- ``transform``: A space-or-comma separated list of a transform method and its values,
+  `as understood by PIL <http://effbot.org/imagingbook/image.htm#tag-Image.Image.transform>`_:
+  E.g. ``"name,width,height,v0,...,vn"``. Width and height of zero will use the image's
+  native dimensions. Percent values are interpreted as relative to the real size of the appropriate axis.
+  E.g.: ``transform="EXTENT,50%,50%,25%,25%,75%,75%"`` will crop the center out of the image.
 
-- ``hidpi`` and ``hidpi_quality``: TBD.
+- ``sharpen``: Space-or-comma separated parameters for an `unsharp mask <https://en.wikipedia.org/wiki/Unsharp_masking>`_,
+  `as understood by Pillow <http://pillow.readthedocs.org/en/latest/reference/ImageFilter.html#PIL.ImageFilter.UnsharpMask>`_.
+  E.g. ``sharpen="0.3,250,2"``.
+
+- ``hidpi`` and ``hidpi_quality``: A resolution scale for HiDPI or "retina" displays.
+  Requested dimensions will be multiplied by ``hidpi`` if the image can support it
+  without enlargement. Any other kwargs matching ``hi_dpi_*`` will also take effect,
+  e.g. for reducing JPEG quality of HiDPI images, e.g.: ``hi_dpi=2, quality=90, hidpi_quality=60``.
+  This is only useful with :func:`resized_img_attrs` or :func:`resized_img_tag`.
 
 
-.. |crop-example| image:: https://flask-images.herokuapp.com/imgsizer/_?h=50&m=crop&u=https%3A%2F%2Ffarm4.staticflickr.com%2F3540%2F5753968652_a28184e5fb.jpg&w=400&x=&s=jXZSUvAWKkXotNOUi0Ap1ceWcdE
 
 Installation
 ------------
@@ -121,7 +136,26 @@ Configure Flask-Images via the following keys in the Flask config:
     How long to tell the browser to cache missing results; defaults to ``3600``. Usually, we will set a max age of one year, and cache bust via the modification time of the source image.
 
 
+.. _api:
 
+Template Functions
+------------------
+
+.. function:: resized_img_src(filename, **kw)
+
+    Get the URL that will render into a resized image.
+
+.. function:: resized_img_size(filename, **kw)
+
+    Get a :class:`flask.ext.images.size.Size` object for the given parameters.
+
+.. function:: resized_img_attrs(filename, **kw)
+
+    Get a ``dict`` of attributes for an HTML ``<img />`` tag.
+
+.. function:: resized_img_tag(filename, **kw)
+
+    Get a ``str`` HTML ``<img />`` tag.
 
 ..
     Contents:
