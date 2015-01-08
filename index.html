@@ -1,0 +1,219 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Flask-Images &mdash; Flask-Images 2.1.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/flasky.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2.1.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Flask-Images 2.1.1 documentation" href="#" /> 
+  </head>
+  <body>
+  
+  
+  <div class=indexwrapper>
+  
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="flask-images">
+<h1>Flask-Images<a class="headerlink" href="#flask-images" title="Permalink to this headline">¶</a></h1>
+<p>Flask-Images is a Flask extension that provides dynamic image resizing for your application.</p>
+<p>This extension adds a <a class="reference internal" href="#resized_img_src" title="resized_img_src"><tt class="xref py py-func docutils literal"><span class="pre">resized_img_src()</span></tt></a> function (and <a class="reference internal" href="#api"><em>others</em></a>) to the template context, which creates a URL to dynamically resize an image. This function takes either a path to a local image (either absolute, or relative to the <a class="reference internal" href="#IMAGES_PATH" title="IMAGES_PATH"><tt class="xref py py-data docutils literal"><span class="pre">IMAGES_PATH</span></tt></a>) or an URL to a remote image, and returns a URL that will serve a resized version on demand.</p>
+<p>Alternatively, this responds to <tt class="docutils literal"><span class="pre">url_for('images',</span> <span class="pre">filename='...',</span> <span class="pre">**kw)</span></tt> to ease transition from Flask&#8217;s static files.</p>
+<p>Try <a class="reference external" href="https://flask-images.herokuapp.com">the demo app</a> (<a class="reference external" href="https://github.com/mikeboers/Flask-Images/blob/master/demo">demo source</a>), and see <a class="reference external" href="https://flask-images.herokuapp.com/demo?url=https%3A%2F%2Ffarm4.staticflickr.com%2F3540%2F5753968652_a28184e5fb.jpg">with an example image</a>.</p>
+</div>
+<div class="section" id="usage">
+<h1>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h1>
+<p>For example, within a Jinja template:</p>
+<div class="highlight-python"><div class="highlight"><pre>&lt;img src=&quot;{{resized_img_src(&#39;logo.png&#39;, width=100)}}&quot; /&gt;
+&lt;img src=&quot;{{resized_img_src(&#39;photo.jpeg&#39;, width=400, height=300, mode=&#39;crop&#39;, quality=95)}}&quot; /&gt;
+OR
+&lt;img src=&quot;{{url_for(&#39;images&#39;, filename=&#39;logo.png&#39;, width=100)}}&quot; /&gt;
+&lt;img src=&quot;{{url_for(&#39;images.crop&#39;, filename=&#39;photo.jpeg&#39;, width=400, height=300, quality=95)}}&quot; /&gt;
+</pre></div>
+</div>
+<p>Behaviour is specified with keyword arguments:</p>
+<ul>
+<li><p class="first"><tt class="docutils literal"><span class="pre">mode</span></tt>: one of <tt class="docutils literal"><span class="pre">'fit'</span></tt>, <tt class="docutils literal"><span class="pre">'crop'</span></tt>, <tt class="docutils literal"><span class="pre">'pad'</span></tt>, or <tt class="docutils literal"><span class="pre">None</span></tt>:</p>
+<blockquote>
+<div><ul class="simple">
+<li><tt class="docutils literal"><span class="pre">'fit'</span></tt>: as large as possible while fitting within the given dimensions;</li>
+<li><tt class="docutils literal"><span class="pre">'crop'</span></tt>: as large as possible while fitting into the given aspect ratio;</li>
+<li><tt class="docutils literal"><span class="pre">'pad'</span></tt>: as large as possible while fitting within the given dimensions,
+and padding to thegiven dimensions with a background colour;</li>
+<li><tt class="docutils literal"><span class="pre">None</span></tt>: resize to the specific dimensions without preserving aspect ratio.</li>
+</ul>
+</div></blockquote>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">width</span></tt> and <tt class="docutils literal"><span class="pre">height</span></tt>: pixel dimensions; at least one is required, but
+both are required for most modes.</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">format</span></tt>: The file extension to use (<a class="reference external" href="http://effbot.org/imagingbook/formats.htm">as accepted by PIL</a> (or <a class="reference external" href="https://pillow.readthedocs.org/">Pillow</a>)); defaults to the
+input image&#8217;s extension.</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">quality</span></tt>: JPEG quality (no effect on non-JPEG images); defaults to <cite>75</cite>.</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">background</span></tt>: Background colour for <tt class="docutils literal"><span class="pre">pad</span></tt> mode. Expressed via via
+CSS names (e.g. <tt class="docutils literal"><span class="pre">&quot;black&quot;</span></tt>), hexadecimal (e.g. <tt class="docutils literal"><span class="pre">&quot;#ff8800&quot;</span></tt>), or
+<a class="reference external" href="http://effbot.org/imagingbook/imagecolor.htm">anything else accepted by PIL</a>.
+Defaults to <tt class="docutils literal"><span class="pre">&quot;black&quot;</span></tt>.</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">enlarge</span></tt>: Should the image be enlarged to satisfy requested dimensions? E.g.
+If you specify <tt class="docutils literal"><span class="pre">mode=&quot;crop&quot;,</span> <span class="pre">width=400,</span> <span class="pre">height=400,</span> <span class="pre">enlarge=True</span></tt>, but the
+image is smaller than 400x400, it will be enlarged to fill that requested size.
+Defaults to <tt class="docutils literal"><span class="pre">False</span></tt>.</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">transform</span></tt>: A space-or-comma separated list of a transform method and its values,
+<a class="reference external" href="http://effbot.org/imagingbook/image.htm#tag-Image.Image.transform">as understood by PIL</a>:
+E.g. <tt class="docutils literal"><span class="pre">&quot;name,width,height,v0,...,vn&quot;</span></tt>. Width and height of zero will use the image&#8217;s
+native dimensions. Percent values are interpreted as relative to the real size of the appropriate axis.
+E.g.: <tt class="docutils literal"><span class="pre">transform=&quot;EXTENT,50%,50%,25%,25%,75%,75%&quot;</span></tt> will crop the center out of the image.</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">sharpen</span></tt>: Space-or-comma separated parameters for an <a class="reference external" href="https://en.wikipedia.org/wiki/Unsharp_masking">unsharp mask</a>,
+<a class="reference external" href="http://pillow.readthedocs.org/en/latest/reference/ImageFilter.html#PIL.ImageFilter.UnsharpMask">as understood by Pillow</a>.
+E.g. <tt class="docutils literal"><span class="pre">sharpen=&quot;0.3,250,2&quot;</span></tt>.</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">hidpi</span></tt> and <tt class="docutils literal"><span class="pre">hidpi_quality</span></tt>: A resolution scale for HiDPI or &#8220;retina&#8221; displays.
+Requested dimensions will be multiplied by <tt class="docutils literal"><span class="pre">hidpi</span></tt> if the image can support it
+without enlargement. Any other kwargs matching <tt class="docutils literal"><span class="pre">hi_dpi_*</span></tt> will also take effect,
+e.g. for reducing JPEG quality of HiDPI images, e.g.: <tt class="docutils literal"><span class="pre">hi_dpi=2,</span> <span class="pre">quality=90,</span> <span class="pre">hidpi_quality=60</span></tt>.
+This is only useful with <a class="reference internal" href="#resized_img_attrs" title="resized_img_attrs"><tt class="xref py py-func docutils literal"><span class="pre">resized_img_attrs()</span></tt></a> or <a class="reference internal" href="#resized_img_tag" title="resized_img_tag"><tt class="xref py py-func docutils literal"><span class="pre">resized_img_tag()</span></tt></a>.</p>
+</li>
+</ul>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>From PyPI:</p>
+<div class="highlight-python"><div class="highlight"><pre>pip install Flask-Images
+</pre></div>
+</div>
+<p>From GitHub:</p>
+<div class="highlight-python"><div class="highlight"><pre>git clone git@github.com:mikeboers/Flask-Images
+pip install -e Flask-Images
+</pre></div>
+</div>
+</div>
+<div class="section" id="id1">
+<h2>Usage<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<p>All you must do is make sure your app has a secret key, then create the
+<tt class="xref py py-class docutils literal"><span class="pre">Images</span></tt> object:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+<span class="n">app</span><span class="o">.</span><span class="n">secret_key</span> <span class="o">=</span> <span class="s">&#39;monkey&#39;</span>
+<span class="n">images</span> <span class="o">=</span> <span class="n">Images</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Now, use either the <a class="reference internal" href="#resized_img_src" title="resized_img_src"><tt class="xref py py-func docutils literal"><span class="pre">resized_img_src()</span></tt></a> function in your templates, or the
+<tt class="docutils literal"><span class="pre">images.&lt;mode&gt;</span></tt> routes in <tt class="docutils literal"><span class="pre">url_for</span></tt>.</p>
+<p>Can be used within Python after import:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">flask.ext.images</span> <span class="kn">import</span> <span class="n">resized_img_src</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h2>
+<p>Configure Flask-Images via the following keys in the Flask config:</p>
+<ul>
+<li><dl class="data">
+<dt id="IMAGES_URL">
+<tt class="descname">IMAGES_URL</tt><a class="headerlink" href="#IMAGES_URL" title="Permalink to this definition">¶</a></dt>
+<dd><p>The url to mount Flask-Images to; defaults to <tt class="docutils literal"><span class="pre">'/imgsizer'</span></tt>.</p>
+</dd></dl>
+
+</li>
+<li><dl class="data">
+<dt id="IMAGES_NME">
+<tt class="descname">IMAGES_NME</tt><a class="headerlink" href="#IMAGES_NME" title="Permalink to this definition">¶</a></dt>
+<dd><p>The name of the registered endpoint used in url_for.</p>
+</dd></dl>
+
+</li>
+<li><dl class="data">
+<dt id="IMAGES_PATH">
+<tt class="descname">IMAGES_PATH</tt><a class="headerlink" href="#IMAGES_PATH" title="Permalink to this definition">¶</a></dt>
+<dd><p>A list of paths to search for images (relative to <tt class="docutils literal"><span class="pre">app.root_path</span></tt>); e.g. <tt class="docutils literal"><span class="pre">['static/uploads']</span></tt></p>
+</dd></dl>
+
+</li>
+<li><dl class="data">
+<dt id="IMAGES_CACHE">
+<tt class="descname">IMAGES_CACHE</tt><a class="headerlink" href="#IMAGES_CACHE" title="Permalink to this definition">¶</a></dt>
+<dd><p>Where to store resized images; defaults to <tt class="docutils literal"><span class="pre">'/tmp/flask-images'</span></tt>.</p>
+</dd></dl>
+
+</li>
+<li><dl class="data">
+<dt id="IMAGES_MAX_AGE">
+<tt class="descname">IMAGES_MAX_AGE</tt><a class="headerlink" href="#IMAGES_MAX_AGE" title="Permalink to this definition">¶</a></dt>
+<dd><p>How long to tell the browser to cache missing results; defaults to <tt class="docutils literal"><span class="pre">3600</span></tt>. Usually, we will set a max age of one year, and cache bust via the modification time of the source image.</p>
+</dd></dl>
+
+</li>
+</ul>
+</div>
+<div class="section" id="template-functions">
+<span id="api"></span><h2>Template Functions<a class="headerlink" href="#template-functions" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="resized_img_src">
+<tt class="descname">resized_img_src</tt><big>(</big><em>filename</em>, <em>**kw</em><big>)</big><a class="headerlink" href="#resized_img_src" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the URL that will render into a resized image.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="resized_img_size">
+<tt class="descname">resized_img_size</tt><big>(</big><em>filename</em>, <em>**kw</em><big>)</big><a class="headerlink" href="#resized_img_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a <tt class="xref py py-class docutils literal"><span class="pre">flask.ext.images.size.Size</span></tt> object for the given parameters.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="resized_img_attrs">
+<tt class="descname">resized_img_attrs</tt><big>(</big><em>filename</em>, <em>**kw</em><big>)</big><a class="headerlink" href="#resized_img_attrs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a <tt class="docutils literal"><span class="pre">dict</span></tt> of attributes for an HTML <tt class="docutils literal"><span class="pre">&lt;img</span> <span class="pre">/&gt;</span></tt> tag.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="resized_img_tag">
+<tt class="descname">resized_img_tag</tt><big>(</big><em>filename</em>, <em>**kw</em><big>)</big><a class="headerlink" href="#resized_img_tag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a <tt class="docutils literal"><span class="pre">str</span></tt> HTML <tt class="docutils literal"><span class="pre">&lt;img</span> <span class="pre">/&gt;</span></tt> tag.</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  
+    <a href="http://github.com/mikeboers/Flask-Images"><img style="position: fixed; top: 0; right: 0; border: 0;"
+    src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+  
+
+  
+  </div>
+  
+
+  </body>
+</html>
