@@ -373,11 +373,17 @@ class Images(object):
         sharpen = re.split(r'[;,_/ ]', sharpen) if sharpen else None
 
         if use_cache:
+
+            # The parts in this initial list were parameters cached in version 1.
+            # In order to avoid regenerating all images when a new feature is
+            # added, we append (feature_name, value) tuples to the end.
             cache_key_parts = [path, mode, width, height, quality, format, background]
-            if transform or sharpen:
-                cache_key_parts.append(transform)
+            if transform:
+                cache_key_parts.append(('transform', transform))
             if sharpen:
-                cache_key_parts.append(sharpen)
+                cache_key_parts.append(('sharpen', sharpen))
+            if enlarge:
+                cache_key_parts.append(('enlarge', enlarge))
             cache_key = hashlib.md5(repr(tuple(cache_key_parts))).hexdigest()
             cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
             cache_path = os.path.join(cache_dir, cache_key + '.' + format)
