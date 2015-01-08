@@ -1,13 +1,17 @@
 language: python
 
+git:
+  # Testing doesn't need Flask themes.
+  submodules: false
+
 python:
-    - "2.7"
-    - "pypy"
+  - "2.7"
+  - "pypy"
 
 env:
-    - FLASK_VERSION="==0.9"
-    - FLASK_VERSION="==0.10"
-    - FLASK_VERSION=""
+  - FLASK_VERSION="==0.9"
+  - FLASK_VERSION="==0.10"
+  - FLASK_VERSION="" # Current.
 
 before_install:
   - sudo apt-get install libjpeg8 libjpeg8-dev libfreetype6 libfreetype6-dev zlib1g-dev tree
