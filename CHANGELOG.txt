@@ -1,3 +1,7 @@
+2.1.2
+-----
+- Fix for local cache not taking "enlarge" paremeter into account.
+
 2.1.1
 -----
 - Fix for Cache-Control header to be a string (as all headers should be).

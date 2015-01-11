@@ -9,7 +9,7 @@ from setuptools import setup
 setup(
 
     name='Flask-Images',
-    version='2.1.1',
+    version='2.1.2',
     description='Dynamic image resizing for Flask.',
     url='http://github.com/mikeboers/Flask-Images',
         
