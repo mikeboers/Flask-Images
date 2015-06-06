@@ -1,10 +1,7 @@
 from __future__ import division
 
-from cStringIO import StringIO
+from io import BytesIO as StringIO
 from subprocess import call
-from urllib import urlencode, quote as urlquote
-from urllib2 import urlopen
-from urlparse import urlparse
 import base64
 import cgi
 import datetime
@@ -16,6 +13,15 @@ import os
 import re
 import struct
 import sys
+from six import iteritems, PY3, string_types
+if PY3:
+    from urllib.parse import urlparse, urlencode, quote as urlquote
+    from urllib.request import urlopen
+    from urllib.error import HTTPError
+else:
+    from urlparse import urlparse
+    from urllib import urlencode, quote as urlquote
+    from urllib2 import urlopen
 
 from PIL import Image, ImageFilter
 from flask import request, current_app, send_file, abort
@@ -35,7 +41,7 @@ log = logging.getLogger(__name__)
 
 
 def encode_int(value):
-    return base64.urlsafe_b64encode(struct.pack('>I', int(value))).rstrip('=').lstrip('A')
+    return base64.urlsafe_b64encode(struct.pack('>I', int(value))).decode('utf-8').rstrip('=').lstrip('A')
 
 
 def makedirs(path):
@@ -66,7 +72,7 @@ LONG_TO_SHORT = dict(
     sharpen='usm',
     # signature -> 's', but should not be here.
 )
-SHORT_TO_LONG = dict((v, k) for k, v in LONG_TO_SHORT.iteritems())
+SHORT_TO_LONG = dict((v, k) for k, v in iteritems(LONG_TO_SHORT))
 
 
 
@@ -179,7 +185,7 @@ class Images(object):
         # Prep the transform, which is a set of delimited strings.
         transform = kwargs.get('transform')
         if transform:
-            if isinstance(transform, basestring):
+            if isinstance(transform, string_types):
                 transform = re.split(r'[,;:_ ]', transform)
             # We replace delimiters with underscores, and percent with p, since
             # these won't need escaping.
@@ -188,7 +194,7 @@ class Images(object):
         # Sign the query.
         public_kwargs = (
             (LONG_TO_SHORT.get(k, k), v)
-            for k, v in kwargs.iteritems()
+            for k, v in iteritems(kwargs)
             if v is not None and not k.startswith('_')
         )
         query = urlencode(sorted(public_kwargs), True)
@@ -282,18 +288,18 @@ class Images(object):
     def handle_request(self, path):
 
         # Verify the signature.
-        query = dict(request.args.iteritems())
+        query = dict(iteritems(request.args))
         old_sig = str(query.pop('s', None))
         if not old_sig:
             abort(404)
         signer = Signer(current_app.secret_key)
-        new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(query.iteritems()), True)))
-        if not constant_time_compare(old_sig, new_sig):
+        new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(iteritems(query)), True)))
+        if not constant_time_compare(str(old_sig), str(new_sig)):
             abort(404)
         
         # Expand kwargs.
-        query = dict((SHORT_TO_LONG.get(k, k), v) for k, v in query.iteritems())
 
+        query = dict((SHORT_TO_LONG.get(k, k), v) for k, v in iteritems(query))
         remote_url = query.get('url')
         if remote_url:
 
@@ -370,7 +376,8 @@ class Images(object):
             if enlarge:
                 cache_key_parts.append(('enlarge', enlarge))
 
-            cache_key = hashlib.md5(repr(tuple(cache_key_parts))).hexdigest()
+
+            cache_key = hashlib.md5(repr(tuple(cache_key_parts)).encode('utf-8')).hexdigest()
             cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
             cache_path = os.path.join(cache_dir, cache_key + '.' + format)
             cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None

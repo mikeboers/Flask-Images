@@ -6,12 +6,18 @@ git:
 
 python:
   - "2.7"
+  - "3.4"
   - "pypy"
 
 env:
   - FLASK_VERSION="==0.9"
   - FLASK_VERSION="==0.10"
   - FLASK_VERSION="" # Current.
+
+matrix:
+  exclude:
+   - python: "3.4" # Disable Flask0.9 tests since it does not support Python3
+     env: FLASK_VERSION="==0.9"
 
 before_install:
   - sudo apt-get install libjpeg8 libjpeg8-dev libfreetype6 libfreetype6-dev zlib1g-dev tree
@@ -22,6 +28,7 @@ before_install:
 
 install:
   - pip install Flask$FLASK_VERSION
+  - pip install six
   - pip install -e .
 
 script: nosetests
