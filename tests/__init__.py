@@ -1,5 +1,9 @@
 import unittest
-from urlparse import urlsplit, parse_qsl
+import sys
+if sys.version_info >= (3, 0):
+    from urllib.parse import urlsplit, parse_qsl
+else:
+    from urlparse import urlsplit, parse_qsl
 
 import werkzeug as wz
 

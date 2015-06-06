@@ -1,10 +1,15 @@
 from __future__ import division
 
-from cStringIO import StringIO
+import sys
+from io import BytesIO as StringIO
 from subprocess import call
-from urllib import urlencode, quote as urlquote
-from urllib2 import urlopen
-from urlparse import urlparse
+if sys.version_info >= (3, 0):
+    from urllib.parse import urlparse, urlencode, quote as urlquote
+    from urllib.request import urlopen
+else:
+    from urlparse import urlparse
+    from urllib import urlencode, quote as urlquote
+    from urllib2 import urlopen
 import base64
 import cgi
 import datetime
@@ -29,8 +34,12 @@ from .transform import Transform
 log = logging.getLogger(__name__)
 
 
-def encode_int(value):
-    return base64.urlsafe_b64encode(struct.pack('>I', int(value))).rstrip('=').lstrip('A')
+if sys.version_info >= (3, 0):
+    def encode_int(value):
+        return base64.urlsafe_b64encode(struct.pack('>I', int(value))).decode('utf-8').rstrip('=').lstrip('A')
+else:
+    def encode_int(value):
+        return base64.urlsafe_b64encode(struct.pack('>I', int(value))).rstrip('=').lstrip('A')
 
 
 def makedirs(path):
@@ -61,7 +70,10 @@ LONG_TO_SHORT = dict(
     sharpen='usm',
     # signature -> 's', but should not be here.
 )
-SHORT_TO_LONG = dict((v, k) for k, v in LONG_TO_SHORT.iteritems())
+if sys.version_info >= (3, 0):
+    SHORT_TO_LONG = dict((v, k) for k, v in LONG_TO_SHORT.items())
+else:
+    SHORT_TO_LONG = dict((v, k) for k, v in LONG_TO_SHORT.iteritems())
 
 
 
@@ -181,9 +193,14 @@ class Images(object):
             kwargs['transform'] = '_'.join(str(x).replace('%', 'p') for x in transform)
 
         # Sign the query.
+        if sys.version_info >= (3, 0):
+            kwargs_items = kwargs.items()
+        else:
+            kwargs_items = kwargs.iteritems()
+
         public_kwargs = (
             (LONG_TO_SHORT.get(k, k), v)
-            for k, v in kwargs.iteritems()
+            for k, v in kwargs_items
             if v is not None and not k.startswith('_')
         )
         query = urlencode(sorted(public_kwargs), True)
@@ -277,17 +294,30 @@ class Images(object):
     def handle_request(self, path):
 
         # Verify the signature.
-        query = dict(request.args.iteritems())
+        if sys.version_info >= (3, 0):
+            query = dict(request.args.items())
+        else:
+            query = dict(request.args.iteritems())
         old_sig = str(query.pop('s', None))
         if not old_sig:
             abort(404)
         signer = Signer(current_app.secret_key)
-        new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(query.iteritems()), True)))
-        if not constant_time_compare(old_sig, new_sig):
-            abort(404)
+        if sys.version_info >= (3, 0):
+            new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(query.items()), True)))
+        else:
+            new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(query.iteritems()), True)))
+        if sys.version_info >= (3, 0):
+            if not constant_time_compare(str(old_sig), str(new_sig)):
+                abort(404)
+        else:
+            if not constant_time_compare(old_sig, new_sig):
+                abort(404)
         
         # Expand kwargs.
-        query = dict((SHORT_TO_LONG.get(k, k), v) for k, v in query.iteritems())
+        if sys.version_info >= (3, 0):
+            query = dict((SHORT_TO_LONG.get(k, k), v) for k, v in query.items())
+        else:
+            query = dict((SHORT_TO_LONG.get(k, k), v) for k, v in query.iteritems())
 
         remote_url = query.get('url')
         if remote_url:
@@ -358,7 +388,10 @@ class Images(object):
             if enlarge:
                 cache_key_parts.append(('enlarge', enlarge))
 
-            cache_key = hashlib.md5(repr(tuple(cache_key_parts))).hexdigest()
+            if sys.version_info >= (3, 0):
+                cache_key = hashlib.md5(repr(tuple(cache_key_parts)).encode('utf-8')).hexdigest()
+            else:
+                cache_key = hashlib.md5(repr(tuple(cache_key_parts))).hexdigest()
             cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
             cache_path = os.path.join(cache_dir, cache_key + '.' + format)
             cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None

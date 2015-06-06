@@ -1,3 +1,4 @@
+import sys
 from PIL import Image
 
 
@@ -24,6 +25,10 @@ class Transform(list):
 
         if len(self) != len(axis):
             raise ValueError('expected %d transform values; got %d' % (len(axis), len(self)))
+
+        if sys.version_info >= (3, 0):
+            xrange = range
+            basestring = (str, bytes)
 
         for i in xrange(1, len(self)):
             v = self[i]
