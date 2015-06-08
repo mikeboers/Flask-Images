@@ -27,14 +27,15 @@ class Transform(list):
             raise ValueError('expected %d transform values; got %d' % (len(axis), len(self)))
 
         if sys.version_info >= (3, 0): # Monkey patching for Python3
-            xrange = range
-            basestring = (str, bytes)
+            _xrange = range
+            _basestring = (str, bytes)
         else:
-            xrange = xrange # Obvious
+            _xrange = xrange # Obvious
+            _basestring = basestring
 
-        for i in xrange(1, len(self)):
+        for i in _xrange(1, len(self)):
             v = self[i]
-            if isinstance(v, basestring):
+            if isinstance(v, _basestring):
                 if v[-1:] in ('%', 'p'): # Percentages.
                     if axis[i] is None:
                         raise ValueError('unknown dimension for %s value %d' % (self[0], i))
