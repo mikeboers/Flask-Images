@@ -26,9 +26,11 @@ class Transform(list):
         if len(self) != len(axis):
             raise ValueError('expected %d transform values; got %d' % (len(axis), len(self)))
 
-        if sys.version_info >= (3, 0):
+        if sys.version_info >= (3, 0): # Monkey patching for Python3
             xrange = range
             basestring = (str, bytes)
+        else:
+            xrange = xrange # Obvious
 
         for i in xrange(1, len(self)):
             v = self[i]
