@@ -309,16 +309,16 @@ class Images(object):
                 log.info('downloading %s' % remote_url)
                 tmp_path = path + '.tmp-' + str(os.getpid())
 
-                try:
-                    remote_file = urlopen(remote_url).read()
-                except HTTPError as e:
-                    # abort with remote error code (403 or 404 most times)
-                    # log.debug('HTTP Error: %r' % e)
-                    abort(e.code)
-                else:
-                    fh = open(tmp_path, 'wb')
-                    fh.write(remote_file)
-                    fh.close()
+try:
+    remote_file = urlopen(remote_url).read()
+except HTTPError as e:
+    # abort with remote error code (403 or 404 most times)
+    # log.debug('HTTP Error: %r' % e)
+    abort(e.code)
+else:
+    fh = open(tmp_path, 'wb')
+    fh.write(remote_file)
+    fh.close()
                 call(['mv', tmp_path, path])
         else:
             path = self.find_img(path)
@@ -326,7 +326,7 @@ class Images(object):
                 abort(404) # Not found.
 
         raw_mtime = os.path.getmtime(path)
-        mtime = datetime.datetime.utcfromtimestamp(raw_mtime).replace(microseconds=0)
+        mtime = datetime.datetime.utcfromtimestamp(raw_mtime).replace(microsecond=0)
         # log.debug('last_modified: %r' % mtime)
         # log.debug('if_modified_since: %r' % request.if_modified_since)
         if request.if_modified_since and request.if_modified_since >= mtime:
