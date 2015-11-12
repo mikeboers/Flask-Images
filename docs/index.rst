@@ -119,7 +119,7 @@ Configure Flask-Images via the following keys in the Flask config:
 
     The url to mount Flask-Images to; defaults to ``'/imgsizer'``.
 
-- .. data:: IMAGES_NME
+- .. data:: IMAGES_NAME
 
     The name of the registered endpoint used in url_for.
 
