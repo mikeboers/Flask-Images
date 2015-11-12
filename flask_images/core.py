@@ -318,7 +318,7 @@ class Images(object):
                 abort(404) # Not found.
 
         raw_mtime = os.path.getmtime(path)
-        mtime = datetime.datetime.utcfromtimestamp(raw_mtime)
+        mtime = datetime.datetime.utcfromtimestamp(raw_mtime).replace(microseconds=0)
         # log.debug('last_modified: %r' % mtime)
         # log.debug('if_modified_since: %r' % request.if_modified_since)
         if request.if_modified_since and request.if_modified_since >= mtime:
