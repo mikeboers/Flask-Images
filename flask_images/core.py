@@ -3,7 +3,7 @@ from __future__ import division
 from cStringIO import StringIO
 from subprocess import call
 from urllib import urlencode, quote as urlquote
-from urllib2 import urlopen
+from urllib2 import urlopen, HTTPError
 from urlparse import urlparse
 import base64
 import cgi
@@ -308,9 +308,17 @@ class Images(object):
             if not os.path.exists(path):
                 log.info('downloading %s' % remote_url)
                 tmp_path = path + '.tmp-' + str(os.getpid())
-                fh = open(tmp_path, 'wb')
-                fh.write(urlopen(remote_url).read())
-                fh.close()
+
+                try:
+                    remote_file = urlopen(remote_url).read()
+                except HTTPError as e:
+                    # abort with remote error code (403 or 404 most times)
+                    # log.debug('HTTP Error: %r' % e)
+                    abort(e.code)
+                else:
+                    fh = open(tmp_path, 'wb')
+                    fh.write(remote_file)
+                    fh.close()
                 call(['mv', tmp_path, path])
         else:
             path = self.find_img(path)
