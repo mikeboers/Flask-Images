@@ -28,6 +28,7 @@ before_install:
 
 install:
   - pip install Flask$FLASK_VERSION
+  - pip install six
   - pip install -e .
 
 script: nosetests
