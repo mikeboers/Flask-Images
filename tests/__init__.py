@@ -1,6 +1,7 @@
 import unittest
 import sys
-if sys.version_info >= (3, 0):
+from six import PY3
+if PY3:
     from urllib.parse import urlsplit, parse_qsl
 else:
     from urlparse import urlsplit, parse_qsl
