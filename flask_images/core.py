@@ -83,9 +83,12 @@ class Images(object):
         app.config.setdefault('IMAGES_PATH', ['static'])
         app.config.setdefault('IMAGES_CACHE', '/tmp/flask-images')
         app.config.setdefault('IMAGES_MAX_AGE', 3600)
+        app.config.setdefault('IMAGES_SIGN_URLS', True)
+        app.config.setdefault('IMAGES_VERIFY_URLS', app.config['IMAGES_SIGN_URLS'])
 
-        app.add_url_rule(app.config['IMAGES_URL'] + '/<path:path>', app.config['IMAGES_NAME'], self.handle_request)
-        app.url_build_error_handlers.append(self.build_error_handler)
+        if app.config['IMAGES_URL'] is not None:
+            app.add_url_rule(app.config['IMAGES_URL'] + '/<path:path>', app.config['IMAGES_NAME'], self.handle_request)
+            app.url_build_error_handlers.append(self.build_error_handler)
 
         if hasattr(app, 'add_template_global'): # Flask >= 0.10
             app.add_template_global(resized_img_src)
@@ -125,10 +128,11 @@ class Images(object):
 
         return None
 
-    def build_url(self, local_path, **kwargs):
+    def build_query(self, local_path, **kwargs):
 
         # Make the path relative.
         local_path = local_path.strip('/')
+        url_path = local_path
 
         # We complain when we see non-normalized paths, as it is a good
         # indicator that unsanitized data may be getting through.
@@ -147,18 +151,20 @@ class Images(object):
         if kwargs.get('_method'):
             raise ValueError('images have no _method')
         
+        add_cache_buster = kwargs.pop('add_cache_buster', True)
+
         # Remote URLs are encoded into the query.
         parsed = urlparse(local_path)
         if parsed.scheme or parsed.netloc:
             if parsed.scheme not in ALLOWED_SCHEMES:
                 raise ValueError('scheme %r is not allowed' % parsed.scheme)
             kwargs['url'] = local_path
-            local_path = '_' # Must be something.
+            url_path = '_' # Must be something.
 
         # Local ones are not.
         else:
             abs_path = self.find_img(local_path)
-            if abs_path:
+            if add_cache_buster and abs_path:
                 kwargs['version'] = encode_int(int(os.path.getmtime(abs_path)))
         
         # Prep the cache flag, which defaults to True.
@@ -180,24 +186,32 @@ class Images(object):
             # these won't need escaping.
             kwargs['transform'] = '_'.join(str(x).replace('%', 'p') for x in transform)
 
-        # Sign the query.
         public_kwargs = (
             (LONG_TO_SHORT.get(k, k), v)
             for k, v in kwargs.iteritems()
             if v is not None and not k.startswith('_')
         )
         query = urlencode(sorted(public_kwargs), True)
-        signer = Signer(current_app.secret_key)
-        sig = signer.get_signature('%s?%s' % (local_path, query))
 
-        url = '%s/%s?%s&s=%s' % (
+        # Sign the query.
+        if current_app.config['IMAGES_SIGN_URLS']:
+            signer = Signer(current_app.secret_key)
+            sig = signer.get_signature('%s?%s' % (local_path, query))
+            query = '%s&s=%s' % (query, sig)
+
+        return url_path, query
+
+    def build_url(self, local_path, **kwargs):
+
+        url_path, query = self.build_query(local_path, **kwargs)
+
+        url = '%s/%s?%s' % (
             current_app.config['IMAGES_URL'],
-            urlquote(local_path),
-            query,
-            sig,
+            urlquote(url_path),
+            query
         )
 
-        if external:
+        if kwargs.get('external'):
             url = '%s://%s%s/%s' % (
                 scheme or request.scheme,
                 request.host,
@@ -274,18 +288,23 @@ class Images(object):
 
         return image
 
-    def handle_request(self, path):
+    def handle_request(self, path, defaults=None, overrides=None):
+        
+        # Collect kwargs.
+        query = dict(defaults or {})
+        query.update(dict(request.args.iteritems()))
+        query.update(overrides or {})
 
         # Verify the signature.
-        query = dict(request.args.iteritems())
-        old_sig = str(query.pop('s', None))
-        if not old_sig:
-            abort(404)
-        signer = Signer(current_app.secret_key)
-        new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(query.iteritems()), True)))
-        if not constant_time_compare(old_sig, new_sig):
-            abort(404)
-        
+        if current_app.config['IMAGES_VERIFY_URLS']:
+            old_sig = str(query.pop('s', None))
+            if not old_sig:
+                abort(404)
+            signer = Signer(current_app.secret_key)
+            new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(query.iteritems()), True)))
+            if not constant_time_compare(old_sig, new_sig):
+                abort(404)
+
         # Expand kwargs.
         query = dict((SHORT_TO_LONG.get(k, k), v) for k, v in query.iteritems())
 
