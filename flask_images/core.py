@@ -124,15 +124,16 @@ class Images(object):
             
             filename = values.pop('filename')
 
-            # This is slightly awkward, but I want to trigger the built-in
-            # TypeError if you use the "images.<mode>" method AND provide
-            # a "mode" kwarg.
             mode = m.group(1)
             if mode:
-                return self.build_url(filename, mode=mode, **values)
-            else:
-                return self.build_url(filename, **values)
+                # There used to be a TypeError here that werkzeug would generate,
+                # if there was already a "mode" but it seems that has changed in
+                # newer versions, so lets just take care of it ourselves.
+                if 'mode' in values:
+                    raise ValueError("`mode` is specified in endpoint and kwargs.")
+                values['mode'] = mode
 
+            return self.build_url(filename, **values)
 
         return None
 
