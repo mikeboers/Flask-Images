@@ -1,11 +1,18 @@
 import unittest
-from urlparse import urlsplit, parse_qsl
+import sys
+from six import PY3
+if PY3:
+    from urllib.parse import urlsplit, parse_qsl
+else:
+    from urlparse import urlsplit, parse_qsl
 
 import werkzeug as wz
 
 from flask import Flask, url_for, render_template_string
-from flask.ext.images import Images, ImageSize, resized_img_src
 import flask
+
+from flask_images import Images, ImageSize, resized_img_src
+
 
 flask_version = tuple(map(int, flask.__version__.split('.')))
 

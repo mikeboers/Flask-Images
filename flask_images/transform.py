@@ -1,4 +1,5 @@
 from PIL import Image
+from six import moves, string_types
 
 
 TRANSFORM_AXIS = {
@@ -25,9 +26,9 @@ class Transform(list):
         if len(self) != len(axis):
             raise ValueError('expected %d transform values; got %d' % (len(axis), len(self)))
 
-        for i in xrange(1, len(self)):
+        for i in moves.range(1, len(self)):
             v = self[i]
-            if isinstance(v, basestring):
+            if isinstance(v, string_types):
                 if v[-1:] in ('%', 'p'): # Percentages.
                     if axis[i] is None:
                         raise ValueError('unknown dimension for %s value %d' % (self[0], i))

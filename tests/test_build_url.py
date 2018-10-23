@@ -35,7 +35,7 @@ class TestUrlBuild(TestCase):
             self.assertIn('s', query_args)
 
     def test_too_many_modes(self):
-        self.assertRaises(TypeError, url_for, 'images.crop', filename='cc.png', mode='reshape')
+        self.assertRaises(ValueError, url_for, 'images.crop', filename='cc.png', mode='reshape')
 
     def test_external(self):
 

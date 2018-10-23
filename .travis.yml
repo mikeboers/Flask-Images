@@ -4,14 +4,66 @@ git:
   # Testing doesn't need Flask themes.
   submodules: false
 
-python:
-  - "2.7"
-  - "pypy"
+matrix:
 
-env:
-  - FLASK_VERSION="==0.9"
-  - FLASK_VERSION="==0.10"
-  - FLASK_VERSION="" # Current.
+  include:
+
+    # 3.6
+
+    - python: "3.6"
+      env: FLASK_VERSION=""
+      os: linux
+
+    - python: "3.6"
+      env: FLASK_VERSION="==1.0"
+      os: linux
+
+    - python: "3.6"
+      env: FLASK_VERSION="==0.10"
+      os: linux
+
+    # 2.7
+
+    - python: "2.7"
+      env: FLASK_VERSION=""
+      os: linux
+
+    - python: "2.7"
+      env: FLASK_VERSION="==1.0"
+      os: linux
+
+    - python: "2.7"
+      env: FLASK_VERSION="==0.10"
+      os: linux
+
+    - python: "2.7"
+      env: FLASK_VERSION="==0.9"
+      os: linux
+
+    # PyPy.
+
+    - python: "pypy"
+      env: FLASK_VERSION=""
+      os: linux
+
+    - python: "pypy"
+      env: FLASK_VERSION="==0.10"
+      os: linux
+      
+    # Older 3s.
+
+    - python: "3.5"
+      env: FLASK_VERSION=""
+      os: linux
+
+    - python: "3.4"
+      env: FLASK_VERSION=""
+      os: linux
+
+    - python: "3.3"
+      env: FLASK_VERSION=""
+      os: linux
+
 
 before_install:
   - sudo apt-get install libjpeg8 libjpeg8-dev libfreetype6 libfreetype6-dev zlib1g-dev tree
@@ -20,8 +72,10 @@ before_install:
   - sudo ln -s /usr/lib/`uname -i`-linux-gnu/libz.so ~/virtualenv/python2.7/lib/
   - pip install nose
 
+
 install:
   - pip install Flask$FLASK_VERSION
   - pip install -e .
+
 
 script: nosetests

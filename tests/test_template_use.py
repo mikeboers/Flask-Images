@@ -13,7 +13,10 @@ class TestTemplateUse(TestCase):
 
         res = self.client.get('/resized_img_src')
         self.assert200(res)
-        self.assertIn('src="/imgsizer/cc.png?', res.data)
+        if PY3:
+            self.assertIn('src="/imgsizer/cc.png?', res.data.decode('utf-8'))
+        else:
+            self.assertIn('src="/imgsizer/cc.png?', res.data)
 
     def test_url_for(self):
 
@@ -25,4 +28,7 @@ class TestTemplateUse(TestCase):
 
         res = self.client.get('/url_for')
         self.assert200(res)
-        self.assertIn('src="/imgsizer/cc.png?', res.data)
+        if PY3:
+            self.assertIn('src="/imgsizer/cc.png?', res.data.decode('utf-8'))
+        else:
+            self.assertIn('src="/imgsizer/cc.png?', res.data)

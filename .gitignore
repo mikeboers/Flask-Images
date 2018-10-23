@@ -5,5 +5,5 @@
 /dist
 MANIFEST
 
-/venv
+/venv*
 /docs/_build
