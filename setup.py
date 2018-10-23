@@ -1,9 +1,3 @@
-try:
-    import multiprocessing
-except ImportError:
-    pass
-
-
 from setuptools import setup
 
 setup(
@@ -28,6 +22,8 @@ setup(
         # dependency madness, I have created a module that should flatten that
         # out. See: https://github.com/mikeboers/Flask-Images/pull/10 for more.
         'PillowCase',
+        
+        'six',
 
     ],
 

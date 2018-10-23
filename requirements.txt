@@ -1,5 +1,3 @@
 # Demo requirements.
 gunicorn
-flask
-pillow
-six
+-e .
