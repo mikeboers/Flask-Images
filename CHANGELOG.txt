@@ -1,6 +1,13 @@
+3.0.0
+-----
+- Python3 support.
+- ValueError is raised (instead of whatever different versions of Flask/werkzeuf raise) when `mode` kwarg is specified along with `images.{mode}` route.
+- Fix for changing location of functions in dependencies. (#50)
+- Fix If-Modified-Since which erroneously had microseconds. (#37)
+
 2.1.2
 -----
-- Fix for local cache not taking "enlarge" paremeter into account.
+- Fix for local cache not taking "enlarge" parameter into account.
 
 2.1.1
 -----
