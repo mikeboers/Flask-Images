@@ -13,7 +13,8 @@ import os
 import re
 import struct
 import sys
-from six import iteritems, PY3, string_types
+
+from six import iteritems, PY3, string_types, text_type
 if PY3:
     from urllib.parse import urlparse, urlencode, quote as urlquote
     from urllib.request import urlopen
@@ -21,7 +22,7 @@ if PY3:
 else:
     from urlparse import urlparse
     from urllib import urlencode, quote as urlquote
-    from urllib2 import urlopen
+    from urllib2 import urlopen, HTTPError
 
 from PIL import Image, ImageFilter
 from flask import request, current_app, send_file, abort
@@ -39,6 +40,12 @@ from .transform import Transform
 
 log = logging.getLogger(__name__)
 
+
+
+def encode_str(value):
+    if isinstance(value, text_type):
+        return value.encode('utf-8')
+    return value
 
 def encode_int(value):
     return base64.urlsafe_b64encode(struct.pack('>I', int(value))).decode('utf-8').rstrip('=').lstrip('A')
@@ -314,7 +321,7 @@ class Images(object):
             makedirs(current_app.config['IMAGES_CACHE'])
             path = os.path.join(
                 current_app.config['IMAGES_CACHE'],
-                hashlib.md5(remote_url).hexdigest() + os.path.splitext(parsed.path)[1]
+                hashlib.md5(encode_str(remote_url)).hexdigest() + os.path.splitext(parsed.path)[1]
             )
 
             if not os.path.exists(path):

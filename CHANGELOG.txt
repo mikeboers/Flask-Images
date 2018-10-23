@@ -1,3 +1,7 @@
+3.0.1
+-----
+- Fix Python2 regression in HTTP error handling.
+
 3.0.0
 -----
 - Python3 support.
