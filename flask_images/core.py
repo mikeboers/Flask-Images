@@ -19,7 +19,12 @@ import sys
 
 from PIL import Image, ImageFilter
 from flask import request, current_app, send_file, abort
-from itsdangerous import Signer, constant_time_compare
+
+try:
+    from itsdangerous import Signer, constant_time_compare
+except ImportError:
+    from itsdangerous import Signer
+    from itsdangerous._compat import constant_time_compare
 
 from . import modes
 from .size import ImageSize
