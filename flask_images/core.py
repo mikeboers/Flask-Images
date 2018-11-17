@@ -213,7 +213,7 @@ class Images(object):
 
         url = '%s/%s?%s&s=%s' % (
             current_app.config['IMAGES_URL'],
-            urlquote(local_path),
+            urlquote(local_path, "/$-_.+!*'(),"),
             query,
             sig,
         )
