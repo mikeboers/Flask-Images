@@ -375,7 +375,7 @@ class Images(object):
         enlarge = query.get('enlarge', False)
 
         sharpen = query.get('sharpen')
-        sharpen = re.split(r'[;,_/ ]', sharpen) if sharpen else None
+        sharpen = re.split(r'[+:;,_/ ]', sharpen) if sharpen else None
 
         if use_cache:
 
