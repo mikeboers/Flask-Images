@@ -308,6 +308,7 @@ class Images(object):
         signer = Signer(current_app.secret_key)
         new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(iteritems(query)), True)))
         if not constant_time_compare(str(old_sig), str(new_sig)):
+            log.warning("Signature mismatch: url's {} != expected {}".format(old_sig, new_sig))
             abort(404)
         
         # Expand kwargs.
