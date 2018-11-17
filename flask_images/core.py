@@ -200,12 +200,14 @@ class Images(object):
             kwargs['transform'] = '_'.join(str(x).replace('%', 'p') for x in transform)
 
         # Sign the query.
-        public_kwargs = (
-            (LONG_TO_SHORT.get(k, k), v)
+        # Collapse to a dict first so that if we accidentally have two of the
+        # same kwarg (e.g. used `hidpi_sharpen` and `usm` which both turn into `usm`).
+        public_kwargs = {
+            LONG_TO_SHORT.get(k, k): v
             for k, v in iteritems(kwargs)
             if v is not None and not k.startswith('_')
-        )
-        query = urlencode(sorted(public_kwargs), True)
+        }
+        query = urlencode(sorted(iteritems(public_kwargs)), True)
         signer = Signer(current_app.secret_key)
         sig = signer.get_signature('%s?%s' % (local_path, query))
 
