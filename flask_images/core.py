@@ -236,7 +236,10 @@ class Images(object):
                 return path
     
     def calculate_size(self, path, **kw):
-        return ImageSize(path=self.find_img(path), **kw)
+        path = self.find_img(path)
+        if not path:
+            abort(404)
+        return ImageSize(path=path, **kw)
 
     def resize(self, image, background=None, **kw):
         
