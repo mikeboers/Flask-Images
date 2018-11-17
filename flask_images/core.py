@@ -494,7 +494,13 @@ def resized_img_attrs(path, hidpi=None, width=None, height=None, enlarge=False, 
 
 
 def resized_img_tag(path, **kw):
-    attrs = resized_img_attrs(path, **kw)
+    attrs = {}
+    for attr, key in (('class', 'class_'), ):
+        try:
+            attrs[attr] = kw.pop(key)
+        except KeyError:
+            pass
+    attrs.update(resized_img_attrs(path, **kw))
     return '<img %s/>' % ' '.join('%s="%s"' % (k, cgi.escape(str(v))) for k, v in sorted(attrs.iteritems()))
 
 
