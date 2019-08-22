@@ -464,7 +464,7 @@ def resized_img_attrs(path, hidpi=None, width=None, height=None, enlarge=False, 
         if enlarge or not hidpi_size.needs_enlarge:
             image = hidpi_size
 
-            for k, v in kw.items():
+            for k, v in list(kw.items()):
                 if k.startswith('hidpi_'):
                     kw.pop(k)
                     kw[k[6:]] = v
@@ -501,7 +501,7 @@ def resized_img_tag(path, **kw):
         except KeyError:
             pass
     attrs.update(resized_img_attrs(path, **kw))
-    return '<img %s/>' % ' '.join('%s="%s"' % (k, cgi.escape(str(v))) for k, v in sorted(attrs.iteritems()))
+    return '<img %s/>' % ' '.join('%s="%s"' % (k, cgi.escape(str(v))) for k, v in sorted(iteritems(attrs)))
 
 
 def resized_img_src(path, **kw):
