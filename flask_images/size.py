@@ -49,6 +49,12 @@ class ImageSize(object):
         else:
             self.image_width, self.image_height = self.image.size
 
+        # It is possible that no dimensions are even given, so pass it through.
+        if not (self.width or self.height):
+            self.width = self.image_width
+            self.height = self.image_height
+            return
+
         # Maintain aspect ratio and scale width.
         if not self.height:
             self.needs_enlarge = self.width > self.image_width
