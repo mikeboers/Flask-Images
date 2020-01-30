@@ -215,7 +215,7 @@ class Images(object):
             current_app.config['IMAGES_URL'],
             urlquote(local_path, "/$-_.+!*'(),"),
             query,
-            sig,
+            sig.decode('utf-8'),
         )
 
         if external:
@@ -307,7 +307,7 @@ class Images(object):
             abort(404)
         signer = Signer(current_app.secret_key)
         new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(iteritems(query)), True)))
-        if not constant_time_compare(str(old_sig), str(new_sig)):
+        if not constant_time_compare(str(old_sig), str(new_sig.decode('utf-8'))):
             log.warning("Signature mismatch: url's {} != expected {}".format(old_sig, new_sig))
             abort(404)
         
