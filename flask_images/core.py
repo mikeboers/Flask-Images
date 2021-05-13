@@ -27,11 +27,7 @@ else:
 from PIL import Image, ImageFilter
 from flask import request, current_app, send_file, abort
 
-try:
-    from itsdangerous import Signer, constant_time_compare
-except ImportError:
-    from itsdangerous import Signer
-    from itsdangerous._compat import constant_time_compare
+from hmac import compare_digest
 
 from . import modes
 from .size import ImageSize
@@ -307,7 +303,7 @@ class Images(object):
             abort(404)
         signer = Signer(current_app.secret_key)
         new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(iteritems(query)), True)))
-        if not constant_time_compare(str(old_sig), str(new_sig.decode('utf-8'))):
+        if not compare_digest(str(old_sig), str(new_sig.decode('utf-8'))):
             log.warning("Signature mismatch: url's {} != expected {}".format(old_sig, new_sig))
             abort(404)
         
