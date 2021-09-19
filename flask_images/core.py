@@ -1,7 +1,6 @@
 from __future__ import division
 
 from io import BytesIO as StringIO
-from subprocess import call
 import base64
 import cgi
 import datetime
@@ -343,7 +342,7 @@ class Images(object):
                     fh = open(tmp_path, 'wb')
                     fh.write(remote_file)
                     fh.close()
-                call(['mv', tmp_path, path])
+                os.rename(tmp_path, path)
         else:
             path = self.find_img(path)
             if not path:
