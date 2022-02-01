@@ -27,11 +27,12 @@ else:
 from PIL import Image, ImageFilter
 from flask import request, current_app, send_file, abort
 
+from hmac import compare_digest as constant_time_compare
+
 try:
-    from itsdangerous import Signer, constant_time_compare
+    from itsdangerous import Signer
 except ImportError:
     from itsdangerous import Signer
-    from itsdangerous._compat import constant_time_compare
 
 from . import modes
 from .size import ImageSize
