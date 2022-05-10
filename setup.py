@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
 
     name='Flask-Images',
-    version='3.0.2',
+    version='3.0.3',
     description='Dynamic image resizing for Flask.',
     url='http://github.com/mikeboers/Flask-Images',
         
@@ -18,10 +18,7 @@ setup(
         'Flask>=0.9',
         'itsdangerous', # For Flask v0.9
 
-        # We need either PIL, or the newer Pillow. Since this may induce some
-        # dependency madness, I have created a module that should flatten that
-        # out. See: https://github.com/mikeboers/Flask-Images/pull/10 for more.
-        'PillowCase',
+        'Pillow',
         
         'six',
 
