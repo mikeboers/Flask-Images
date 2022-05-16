@@ -297,19 +297,26 @@ class Images(object):
 
         # Verify the signature.
         query = dict(iteritems(request.args))
-        old_sig = str(query.pop('s', None))
+        old_sig = query.pop('s', None)
         if not old_sig:
-            abort(404)
+            path = self.find_img(path)
+            if path:
+                return send_file(path)
+            abort(404)  # Not found.
+
+        old_sig = str(old_sig)
         signer = Signer(current_app.secret_key)
         new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(iteritems(query)), True)))
-        if not compare_digest(str(old_sig), str(new_sig.decode('utf-8'))):
+        if not (compare_digest(old_sig, new_sig.decode())
+                or compare_digest(old_sig, str(new_sig))):
             log.warning("Signature mismatch: url's {} != expected {}".format(old_sig, new_sig))
             abort(404)
-        
+
         # Expand kwargs.
 
         query = dict((SHORT_TO_LONG.get(k, k), v) for k, v in iteritems(query))
         remote_url = query.get('url')
+
         if remote_url:
 
             # This is redundant for newly built URLs, but not for those which
@@ -342,15 +349,16 @@ class Images(object):
         else:
             path = self.find_img(path)
             if not path:
-                abort(404) # Not found.
+                abort(404)  # Not found.
 
-        raw_mtime = os.path.getmtime(path)
-        mtime = datetime.datetime.utcfromtimestamp(raw_mtime).replace(microsecond=0)
-        # log.debug('last_modified: %r' % mtime)
-        # log.debug('if_modified_since: %r' % request.if_modified_since)
-        if request.if_modified_since and request.if_modified_since >= mtime:
+        raw_modified_time = os.path.getmtime(path)
+        modified_time = datetime.datetime.fromtimestamp(raw_modified_time, timezone.utc)  # add timezone to make aware
+        # current_app.logger.debug(f'if_modified_since: {request.if_modified_since}')
+        # current_app.logger.debug(f'last_modified: {modified_time}')
+        if request.if_modified_since and request.if_modified_since >= modified_time:
+            # current_app.logger.debug(f'entered if, 304 returned')
             return '', 304
-        
+
         mode = query.get('mode')
 
         transform = query.get('transform')
@@ -363,8 +371,10 @@ class Images(object):
         height = int(height) if height else None
         quality = query.get('quality')
         quality = int(quality) if quality else 75
-        format = (query.get('format', '') or os.path.splitext(path)[1][1:] or 'jpeg').lower()
-        format = {'jpg' : 'jpeg'}.get(format, format)
+        format = 'svg+xml'
+        if not path.endswith('.svg'):
+            format = (query.get('format', '') or os.path.splitext(path)[1][1:] or 'jpeg').lower()
+            format = {'jpg': 'jpeg'}.get(format, format)
         has_version = 'version' in query
         use_cache = query.get('cache', True)
         enlarge = query.get('enlarge', False)
@@ -372,8 +382,10 @@ class Images(object):
         sharpen = query.get('sharpen')
         sharpen = re.split(r'[+:;,_/ ]', sharpen) if sharpen else None
 
+        cache_mtime = None
+        cache_dir = current_app.config['IMAGES_CACHE']
+        cache_path = os.path.join(cache_dir, format)
         if use_cache:
-
             # The parts in this initial list were parameters cached in version 1.
             # In order to avoid regenerating all images when a new feature is
             # added, we append (feature_name, value) tuples to the end.
@@ -385,44 +397,50 @@ class Images(object):
             if enlarge:
                 cache_key_parts.append(('enlarge', enlarge))
 
-
             cache_key = hashlib.md5(repr(tuple(cache_key_parts)).encode('utf-8')).hexdigest()
             cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
             cache_path = os.path.join(cache_dir, cache_key + '.' + format)
             cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
-        
+
         mimetype = 'image/%s' % format
         cache_timeout = 31536000 if has_version else current_app.config['IMAGES_MAX_AGE']
 
-        if not use_cache or not cache_mtime or cache_mtime < raw_mtime:
-            
-            log.info('resizing %r for %s' % (path, query))
-            image = Image.open(path)
-            image = self.resize(image,
-                background=background,
-                enlarge=enlarge,
-                height=height,
-                mode=mode,
-                transform=transform,
-                width=width,
-            )
-            image = self.post_process(image,
-                sharpen=sharpen,
-            )
+        if not use_cache or not cache_mtime or cache_mtime < raw_modified_time:
 
-            if not use_cache:
-                fh = StringIO()
-                image.save(fh, format, quality=quality)
-                return fh.getvalue(), 200, [
-                    ('Content-Type', mimetype),
-                    ('Cache-Control', str(cache_timeout)),
-                ]
-            
-            makedirs(cache_dir)
-            cache_file = open(cache_path, 'wb')
-            image.save(cache_file, format, quality=quality)
-            cache_file.close()
-        
+            log.info('resizing %r for %s' % (path, query))
+
+            # This is not in flask_images
+            # We added this
+            if path.endswith('.svg'):
+                makedirs(cache_dir)
+                scour.start(SVG_MINIFY_OPTIONS, open(path, 'rb'), open(cache_path, 'wb'))
+            else:
+                image = Image.open(path)
+                image = self.resize(image,
+                                    background=background,
+                                    enlarge=enlarge,
+                                    height=height,
+                                    mode=mode,
+                                    transform=transform,
+                                    width=width,
+                                    )
+                image = self.post_process(image,
+                                          sharpen=sharpen,
+                                          )
+
+                if not use_cache:
+                    fh = StringIO()
+                    image.save(fh, format, quality=quality)
+                    return fh.getvalue(), 200, [
+                        ('Content-Type', mimetype),
+                        ('Cache-Control', str(cache_timeout)),
+                    ]
+
+                makedirs(cache_dir)
+                cache_file = open(cache_path, 'wb')
+                image.save(cache_file, format, quality=quality)
+                cache_file.close()
+
         return send_file(cache_path, mimetype=mimetype, cache_timeout=cache_timeout)
 
 
