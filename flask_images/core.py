@@ -13,6 +13,9 @@ import os
 import re
 import struct
 import sys
+import xml.etree.ElementTree as ET
+from functools import lru_cache
+from scour import scour
 
 from six import iteritems, PY3, string_types, text_type
 if PY3:
