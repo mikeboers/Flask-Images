@@ -16,6 +16,8 @@ import sys
 import xml.etree.ElementTree as ET
 from functools import lru_cache
 from scour import scour
+from itsdangerous import Signer
+from datetime import timezone
 
 from six import iteritems, PY3, string_types, text_type
 if PY3:
@@ -36,6 +38,37 @@ from . import modes
 from .size import ImageSize
 from .transform import Transform
 
+class SVG_MINIFY_OPTIONS:
+    digits = 5
+    quiet = True
+    verbose = False
+    cdigits = -1
+    simple_colors = True
+    style_to_xml = True
+    group_collapse = True
+    group_create = False
+    keep_editor_data = False
+    keep_defs = False
+    renderer_workaround = True
+    strip_xml_prolog = True
+    remove_titles = True
+    remove_descriptions = True
+    remove_metadata = True
+    remove_descriptive_elements = True
+    strip_comments = True
+    embed_rasters = False
+    enable_viewboxing = True
+    indent_type = 'none'
+    indent_depth = 0
+    newlines = False
+    strip_xml_space_attribute = True
+    strip_ids = True
+    shorten_ids = True
+    shorten_ids_prefix = ''
+    protect_ids_noninkscape = False
+    protect_ids_list = None
+    protect_ids_prefix = None
+    error_on_flowtext = False
 
 log = logging.getLogger(__name__)
 
