@@ -141,7 +141,6 @@ class Images(object):
         return None
 
     def build_url(self, local_path, **kwargs):
-
         # Make the path relative.
         local_path = local_path.strip('/')
 
@@ -161,21 +160,21 @@ class Images(object):
             raise ValueError('images have no _anchor')
         if kwargs.get('_method'):
             raise ValueError('images have no _method')
-        
+
         # Remote URLs are encoded into the query.
         parsed = urlparse(local_path)
         if parsed.scheme or parsed.netloc:
             if parsed.scheme not in ALLOWED_SCHEMES:
                 raise ValueError('scheme %r is not allowed' % parsed.scheme)
             kwargs['url'] = local_path
-            local_path = '_' # Must be something.
+            local_path = '_'  # Must be something.
 
         # Local ones are not.
         else:
             abs_path = self.find_img(local_path)
             if abs_path:
                 kwargs['version'] = encode_int(int(os.path.getmtime(abs_path)))
-        
+
         # Prep the cache flag, which defaults to True.
         cache = kwargs.pop('cache', True)
         if not cache:
@@ -211,7 +210,7 @@ class Images(object):
             current_app.config['IMAGES_URL'],
             urlquote(local_path, "/$-_.+!*'(),"),
             query,
-            sig.decode('utf-8'),
+            sig.decode(),
         )
 
         if external:
@@ -222,8 +221,8 @@ class Images(object):
                 url.lstrip('/')
             )
 
-        return url
-        
+        return url        
+
     def find_img(self, local_path):
         local_path = os.path.normpath(local_path.lstrip('/'))
         for path_base in current_app.config['IMAGES_PATH']:
