@@ -522,3 +522,32 @@ def resized_img_src(path, **kw):
     return self.build_url(path, **kw)
 
 
+def _find_img(local_path):
+    local_path = os.path.normpath(local_path.lstrip('/'))
+    for path_base in current_app.config['IMAGES_PATH']:
+        path = os.path.join(current_app.root_path, path_base, local_path)
+        if os.path.exists(path):
+            return path
+
+
+def get_aspect_ratio(path, filename):
+    full_path = _find_img(filename)
+    current_app.logger.debug(full_path)
+    try:
+        if full_path.endswith('.svg'):
+            image = ET.parse(full_path).getroot()
+            height = int(image.attrib["height"].strip("px"))
+            width = int(image.attrib["width"].strip("px"))
+        else:
+            opened_image = Image.open(full_path)
+            height = opened_image.height
+            width = opened_image.width
+        return width / height
+    except:  # if image doesn't exist
+        return None
+
+
+@lru_cache(maxsize=1024)
+def calculate_height(path, filename, width=100):
+    aspect_ratio = get_aspect_ratio(path, filename)
+    return width / aspect_ratio if aspect_ratio else "auto"
