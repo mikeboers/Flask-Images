@@ -221,7 +221,7 @@ class Images(object):
                 url.lstrip('/')
             )
 
-        return url        
+        return url
 
     def find_img(self, local_path):
         local_path = os.path.normpath(local_path.lstrip('/'))
