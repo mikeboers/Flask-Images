@@ -13,6 +13,11 @@ import os
 import re
 import struct
 import sys
+import xml.etree.ElementTree as ET
+from functools import lru_cache
+from scour import scour
+from itsdangerous import Signer
+from datetime import timezone
 
 from six import iteritems, PY3, string_types, text_type
 if PY3:
@@ -33,6 +38,37 @@ from . import modes
 from .size import ImageSize
 from .transform import Transform
 
+class SVG_MINIFY_OPTIONS:
+    digits = 5
+    quiet = True
+    verbose = False
+    cdigits = -1
+    simple_colors = True
+    style_to_xml = True
+    group_collapse = True
+    group_create = False
+    keep_editor_data = False
+    keep_defs = False
+    renderer_workaround = True
+    strip_xml_prolog = True
+    remove_titles = True
+    remove_descriptions = True
+    remove_metadata = True
+    remove_descriptive_elements = True
+    strip_comments = True
+    embed_rasters = False
+    enable_viewboxing = True
+    indent_type = 'none'
+    indent_depth = 0
+    newlines = False
+    strip_xml_space_attribute = True
+    strip_ids = True
+    shorten_ids = True
+    shorten_ids_prefix = ''
+    protect_ids_noninkscape = False
+    protect_ids_list = None
+    protect_ids_prefix = None
+    error_on_flowtext = False
 
 log = logging.getLogger(__name__)
 
@@ -106,12 +142,14 @@ class Images(object):
             app.add_template_global(resized_img_size)
             app.add_template_global(resized_img_attrs)
             app.add_template_global(resized_img_tag)
+            app.add_template_global(calculate_height)
         else:
             ctx = {
                 'resized_img_src': resized_img_src,
                 'resized_img_size': resized_img_size,
                 'resized_img_attrs': resized_img_attrs,
                 'resized_img_tag': resized_img_tag,
+                'calculate_height': calculate_height,
             }
             app.context_processor(lambda: ctx)
 
@@ -141,7 +179,6 @@ class Images(object):
         return None
 
     def build_url(self, local_path, **kwargs):
-
         # Make the path relative.
         local_path = local_path.strip('/')
 
@@ -161,21 +198,21 @@ class Images(object):
             raise ValueError('images have no _anchor')
         if kwargs.get('_method'):
             raise ValueError('images have no _method')
-        
+
         # Remote URLs are encoded into the query.
         parsed = urlparse(local_path)
         if parsed.scheme or parsed.netloc:
             if parsed.scheme not in ALLOWED_SCHEMES:
                 raise ValueError('scheme %r is not allowed' % parsed.scheme)
             kwargs['url'] = local_path
-            local_path = '_' # Must be something.
+            local_path = '_'  # Must be something.
 
         # Local ones are not.
         else:
             abs_path = self.find_img(local_path)
             if abs_path:
                 kwargs['version'] = encode_int(int(os.path.getmtime(abs_path)))
-        
+
         # Prep the cache flag, which defaults to True.
         cache = kwargs.pop('cache', True)
         if not cache:
@@ -211,7 +248,7 @@ class Images(object):
             current_app.config['IMAGES_URL'],
             urlquote(local_path, "/$-_.+!*'(),"),
             query,
-            sig.decode('utf-8'),
+            sig.decode(),
         )
 
         if external:
@@ -223,7 +260,7 @@ class Images(object):
             )
 
         return url
-        
+
     def find_img(self, local_path):
         local_path = os.path.normpath(local_path.lstrip('/'))
         for path_base in current_app.config['IMAGES_PATH']:
@@ -298,19 +335,26 @@ class Images(object):
 
         # Verify the signature.
         query = dict(iteritems(request.args))
-        old_sig = str(query.pop('s', None))
+        old_sig = query.pop('s', None)
         if not old_sig:
-            abort(404)
+            path = self.find_img(path)
+            if path:
+                return send_file(path)
+            abort(404)  # Not found.
+
+        old_sig = str(old_sig)
         signer = Signer(current_app.secret_key)
         new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(iteritems(query)), True)))
-        if not compare_digest(str(old_sig), str(new_sig.decode('utf-8'))):
+        if not (compare_digest(old_sig, new_sig.decode())
+                or compare_digest(old_sig, str(new_sig))):
             log.warning("Signature mismatch: url's {} != expected {}".format(old_sig, new_sig))
             abort(404)
-        
+
         # Expand kwargs.
 
         query = dict((SHORT_TO_LONG.get(k, k), v) for k, v in iteritems(query))
         remote_url = query.get('url')
+
         if remote_url:
 
             # This is redundant for newly built URLs, but not for those which
@@ -343,15 +387,16 @@ class Images(object):
         else:
             path = self.find_img(path)
             if not path:
-                abort(404) # Not found.
+                abort(404)  # Not found.
 
-        raw_mtime = os.path.getmtime(path)
-        mtime = datetime.datetime.utcfromtimestamp(raw_mtime).replace(microsecond=0)
-        # log.debug('last_modified: %r' % mtime)
-        # log.debug('if_modified_since: %r' % request.if_modified_since)
-        if request.if_modified_since and request.if_modified_since >= mtime:
+        raw_modified_time = os.path.getmtime(path)
+        modified_time = datetime.datetime.fromtimestamp(raw_modified_time, timezone.utc)  # add timezone to make aware
+        # current_app.logger.debug(f'if_modified_since: {request.if_modified_since}')
+        # current_app.logger.debug(f'last_modified: {modified_time}')
+        if request.if_modified_since and request.if_modified_since >= modified_time:
+            # current_app.logger.debug(f'entered if, 304 returned')
             return '', 304
-        
+
         mode = query.get('mode')
 
         transform = query.get('transform')
@@ -364,8 +409,10 @@ class Images(object):
         height = int(height) if height else None
         quality = query.get('quality')
         quality = int(quality) if quality else 75
-        format = (query.get('format', '') or os.path.splitext(path)[1][1:] or 'jpeg').lower()
-        format = {'jpg' : 'jpeg'}.get(format, format)
+        format = 'svg+xml'
+        if not path.endswith('.svg'):
+            format = (query.get('format', '') or os.path.splitext(path)[1][1:] or 'jpeg').lower()
+            format = {'jpg': 'jpeg'}.get(format, format)
         has_version = 'version' in query
         use_cache = query.get('cache', True)
         enlarge = query.get('enlarge', False)
@@ -373,8 +420,10 @@ class Images(object):
         sharpen = query.get('sharpen')
         sharpen = re.split(r'[+:;,_/ ]', sharpen) if sharpen else None
 
+        cache_mtime = None
+        cache_dir = current_app.config['IMAGES_CACHE']
+        cache_path = os.path.join(cache_dir, format)
         if use_cache:
-
             # The parts in this initial list were parameters cached in version 1.
             # In order to avoid regenerating all images when a new feature is
             # added, we append (feature_name, value) tuples to the end.
@@ -386,44 +435,50 @@ class Images(object):
             if enlarge:
                 cache_key_parts.append(('enlarge', enlarge))
 
-
             cache_key = hashlib.md5(repr(tuple(cache_key_parts)).encode('utf-8')).hexdigest()
             cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
             cache_path = os.path.join(cache_dir, cache_key + '.' + format)
             cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
-        
+
         mimetype = 'image/%s' % format
         cache_timeout = 31536000 if has_version else current_app.config['IMAGES_MAX_AGE']
 
-        if not use_cache or not cache_mtime or cache_mtime < raw_mtime:
-            
-            log.info('resizing %r for %s' % (path, query))
-            image = Image.open(path)
-            image = self.resize(image,
-                background=background,
-                enlarge=enlarge,
-                height=height,
-                mode=mode,
-                transform=transform,
-                width=width,
-            )
-            image = self.post_process(image,
-                sharpen=sharpen,
-            )
+        if not use_cache or not cache_mtime or cache_mtime < raw_modified_time:
 
-            if not use_cache:
-                fh = StringIO()
-                image.save(fh, format, quality=quality)
-                return fh.getvalue(), 200, [
-                    ('Content-Type', mimetype),
-                    ('Cache-Control', str(cache_timeout)),
-                ]
-            
-            makedirs(cache_dir)
-            cache_file = open(cache_path, 'wb')
-            image.save(cache_file, format, quality=quality)
-            cache_file.close()
-        
+            log.info('resizing %r for %s' % (path, query))
+
+            # This is not in flask_images
+            # We added this
+            if path.endswith('.svg'):
+                makedirs(cache_dir)
+                scour.start(SVG_MINIFY_OPTIONS, open(path, 'rb'), open(cache_path, 'wb'))
+            else:
+                image = Image.open(path)
+                image = self.resize(image,
+                                    background=background,
+                                    enlarge=enlarge,
+                                    height=height,
+                                    mode=mode,
+                                    transform=transform,
+                                    width=width,
+                                    )
+                image = self.post_process(image,
+                                          sharpen=sharpen,
+                                          )
+
+                if not use_cache:
+                    fh = StringIO()
+                    image.save(fh, format, quality=quality)
+                    return fh.getvalue(), 200, [
+                        ('Content-Type', mimetype),
+                        ('Cache-Control', str(cache_timeout)),
+                    ]
+
+                makedirs(cache_dir)
+                cache_file = open(cache_path, 'wb')
+                image.save(cache_file, format, quality=quality)
+                cache_file.close()
+
         return send_file(cache_path, mimetype=mimetype, cache_timeout=cache_timeout)
 
 
@@ -505,3 +560,32 @@ def resized_img_src(path, **kw):
     return self.build_url(path, **kw)
 
 
+def _find_img(local_path):
+    local_path = os.path.normpath(local_path.lstrip('/'))
+    for path_base in current_app.config['IMAGES_PATH']:
+        path = os.path.join(current_app.root_path, path_base, local_path)
+        if os.path.exists(path):
+            return path
+
+
+def get_aspect_ratio(path, filename):
+    full_path = _find_img(filename)
+    current_app.logger.debug(full_path)
+    try:
+        if full_path.endswith('.svg'):
+            image = ET.parse(full_path).getroot()
+            height = int(image.attrib["height"].strip("px"))
+            width = int(image.attrib["width"].strip("px"))
+        else:
+            opened_image = Image.open(full_path)
+            height = opened_image.height
+            width = opened_image.width
+        return width / height
+    except:  # if image doesn't exist
+        return None
+
+
+@lru_cache(maxsize=1024)
+def calculate_height(path, filename, width=100):
+    aspect_ratio = get_aspect_ratio(path, filename)
+    return width / aspect_ratio if aspect_ratio else "auto"
