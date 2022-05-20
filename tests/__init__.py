@@ -11,7 +11,7 @@ import werkzeug as wz
 from flask import Flask, url_for, render_template_string
 import flask
 
-from flask_images import Images, ImageSize, resized_img_src
+from flask_image_resizer import Images, ImageSize, resized_img_src
 
 
 flask_version = tuple(map(int, flask.__version__.split('.')))
