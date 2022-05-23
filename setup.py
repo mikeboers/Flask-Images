@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
 
-    name='Flask-Images',
+    name='Flask-Image-Resizer',
     version='3.0.3',
     description='Dynamic image resizing for Flask.',
     url='http://github.com/mikeboers/Flask-Images',
@@ -11,7 +11,7 @@ setup(
     author_email='flask_images@mikeboers.com',
     license='BSD-3',
 
-    packages=['flask_images'],
+    packages=['flask_image_resizer'],
 
     install_requires=[
 
