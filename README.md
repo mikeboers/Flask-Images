@@ -1,15 +1,16 @@
-Flask-Images
-============
+Flask-Image-Resizer
+===================
 
-[![Travis Build Status][travis-badge]][travis]
+This is a fork of [mikeboers/Flask-Images](https://github.com/mikeboers/Flask-Images)
 
-Flask-Images is a Flask extension that provides dynamic image resizing for your application.
+Flask-Image-Resizer is also a Flask extension that provides dynamic image resizing for your application.
 
-[Read the docs][docs], [try the demo][demo], have fun, and good luck!
+[Read the docs][docs], [try the demo][demo.
 
-
-[travis-badge]: https://img.shields.io/travis/mikeboers/Flask-Images/develop.svg?logo=travis&label=travis
-[travis]: https://travis-ci.org/mikeboers/Flask-Images
-
-[docs]: https://mikeboers.github.io/Flask-Images/
-[demo]: https://flask-images.herokuapp.com/
+## What was done
+- Add svg minify options
+- Fix compatibility issue with itsdangerous
+- Update handle_request
+- Add `_find_img`
+- Add `get_aspect_ratio`
+- Add `calculate_height`
