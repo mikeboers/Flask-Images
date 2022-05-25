@@ -5,8 +5,6 @@ This is a fork of [mikeboers/Flask-Images](https://github.com/mikeboers/Flask-Im
 
 Flask-Image-Resizer is also a Flask extension that provides dynamic image resizing for your application.
 
-[Read the docs][docs], [try the demo][demo.
-
 ## What was done
 - Add svg minify options
 - Fix compatibility issue with itsdangerous
