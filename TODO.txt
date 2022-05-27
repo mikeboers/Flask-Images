@@ -1,2 +1,3 @@
-- Integrate pngcrush.
-- Investigate using a Blueprint.
+- Define release version
+- Update the changelog
+- Update AUTHORS.txt?
