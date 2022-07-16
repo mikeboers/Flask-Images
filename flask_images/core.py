@@ -13,6 +13,7 @@ import os
 import re
 import struct
 import sys
+import hmac
 
 from six import iteritems, PY3, string_types, text_type
 if PY3:
@@ -27,11 +28,6 @@ else:
 from PIL import Image, ImageFilter
 from flask import request, current_app, send_file, abort
 
-try:
-    from itsdangerous import Signer, constant_time_compare
-except ImportError:
-    from itsdangerous import Signer
-    from itsdangerous._compat import constant_time_compare
 
 from . import modes
 from .size import ImageSize
@@ -208,14 +204,16 @@ class Images(object):
             if v is not None and not k.startswith('_')
         }
         query = urlencode(sorted(iteritems(public_kwargs)), True)
-        signer = Signer(current_app.secret_key)
-        sig = signer.get_signature('%s?%s' % (local_path, query))
+        sig_auth = hmac.new(current_app.secret_key.encode('utf-8'),
+                       f'{local_path}?{query}'.encode('utf-8'),
+                       digestmod='sha256')
 
+        # I am using hexdigest to increase readability in warnings.
         url = '%s/%s?%s&s=%s' % (
             current_app.config['IMAGES_URL'],
             urlquote(local_path, "/$-_.+!*'(),"),
             query,
-            sig.decode('utf-8'),
+            sig_auth.hexdigest(),
         )
 
         if external:
@@ -302,13 +300,16 @@ class Images(object):
 
         # Verify the signature.
         query = dict(iteritems(request.args))
-        old_sig = str(query.pop('s', None))
+        old_sig = bytes(query.pop('s', None), 'utf-8')
         if not old_sig:
             abort(404)
-        signer = Signer(current_app.secret_key)
-        new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(iteritems(query)), True)))
-        if not constant_time_compare(str(old_sig), str(new_sig.decode('utf-8'))):
-            log.warning("Signature mismatch: url's {} != expected {}".format(old_sig, new_sig))
+        query_info = urlencode(sorted(iteritems(query)), True)
+        msg_auth = hmac.new(current_app.secret_key.encode('utf-8'),
+                           f'{path}?{query_info}'.encode('utf-8'),
+                           digestmod='sha256')
+        new_sig = bytes(msg_auth.hexdigest(), 'utf-8')
+        if not hmac.compare_digest(old_sig, new_sig):
+            log.warning(f"Signature mismatch: url's {old_sig} != expected {new_sig}")
             abort(404)
         
         # Expand kwargs.
