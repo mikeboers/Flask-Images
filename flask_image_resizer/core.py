@@ -441,7 +441,7 @@ class Images(object):
             cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
 
         mimetype = 'image/%s' % format
-        cache_timeout = 31536000 if has_version else current_app.config['IMAGES_MAX_AGE']
+        max_age = 31536000 if has_version else current_app.config['IMAGES_MAX_AGE']
 
         if not use_cache or not cache_mtime or cache_mtime < raw_modified_time:
 
@@ -471,7 +471,7 @@ class Images(object):
                     image.save(fh, format, quality=quality)
                     return fh.getvalue(), 200, [
                         ('Content-Type', mimetype),
-                        ('Cache-Control', str(cache_timeout)),
+                        ('Cache-Control', str(max_age)),
                     ]
 
                 makedirs(cache_dir)
@@ -479,7 +479,7 @@ class Images(object):
                 image.save(cache_file, format, quality=quality)
                 cache_file.close()
 
-        return send_file(cache_path, mimetype=mimetype, cache_timeout=cache_timeout)
+        return send_file(cache_path, mimetype=mimetype, max_age=max_age)
 
 
 
