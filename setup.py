@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
 
     name='Flask-Images',
-    version='3.0.2',
+    version='3.0.3',
     description='Dynamic image resizing for Flask.',
     url='http://github.com/mikeboers/Flask-Images',
         
