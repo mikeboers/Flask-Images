@@ -588,4 +588,4 @@ def get_aspect_ratio(path, filename):
 @lru_cache(maxsize=1024)
 def calculate_height(path, filename, width=100):
     aspect_ratio = get_aspect_ratio(path, filename)
-    return width / aspect_ratio if aspect_ratio else "auto"
+    return int(width / aspect_ratio) if aspect_ratio else "auto"
