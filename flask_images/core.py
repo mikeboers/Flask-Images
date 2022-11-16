@@ -351,11 +351,13 @@ class Images(object):
                 abort(404) # Not found.
 
         raw_mtime = os.path.getmtime(path)
-        mtime = datetime.datetime.utcfromtimestamp(raw_mtime).replace(microsecond=0)
         # log.debug('last_modified: %r' % mtime)
         # log.debug('if_modified_since: %r' % request.if_modified_since)
-        if request.if_modified_since and request.if_modified_since >= mtime:
-            return '', 304
+        if request.if_modified_since:
+            tzinfo = request.if_modified_since.tzinfo
+            mtime = datetime.datetime.fromtimestamp(raw_mtime, tz=tzinfo).replace(microsecond=0)
+            if request.if_modified_since >= mtime:
+                return '', 304
         
         mode = query.get('mode')
 
