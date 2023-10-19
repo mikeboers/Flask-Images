@@ -1,3 +1,7 @@
+3.0.6
+-----
+- Fix compatibility with Pillow 10.0.0 (ANTIALIAS is deprecated, using LANCZOS instead)
+
 3.0.5
 -----
 - Fix calculate_height to return an integer
