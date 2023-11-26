@@ -27,11 +27,12 @@ else:
 from PIL import Image, ImageFilter
 from flask import request, current_app, send_file, abort
 
+from hmac import compare_digest as constant_time_compare
+
 try:
-    from itsdangerous import Signer, constant_time_compare
+    from itsdangerous import Signer
 except ImportError:
     from itsdangerous import Signer
-    from itsdangerous._compat import constant_time_compare
 
 from . import modes
 from .size import ImageSize
@@ -255,13 +256,13 @@ class Images(object):
         
         # Handle the easy cases.
         if size.mode in (modes.RESHAPE, None) or size.req_width is None or size.req_height is None:
-            return image.resize((size.width, size.height), Image.ANTIALIAS)
+            return image.resize((size.width, size.height), Image.LANCZOS)
 
         if size.mode not in (modes.FIT, modes.PAD, modes.CROP):
             raise ValueError('unknown mode %r' % size.mode)
 
         if image.size != (size.op_width, size.op_height):
-            image = image.resize((size.op_width, size.op_height), Image.ANTIALIAS)
+            image = image.resize((size.op_width, size.op_height), Image.LANCZOS)
         
         if size.mode == modes.FIT:
             return image
@@ -350,11 +351,13 @@ class Images(object):
                 abort(404) # Not found.
 
         raw_mtime = os.path.getmtime(path)
-        mtime = datetime.datetime.utcfromtimestamp(raw_mtime).replace(microsecond=0)
         # log.debug('last_modified: %r' % mtime)
         # log.debug('if_modified_since: %r' % request.if_modified_since)
-        if request.if_modified_since and request.if_modified_since >= mtime:
-            return '', 304
+        if request.if_modified_since:
+            tzinfo = request.if_modified_since.tzinfo
+            mtime = datetime.datetime.fromtimestamp(raw_mtime, tz=tzinfo).replace(microsecond=0)
+            if request.if_modified_since >= mtime:
+                return '', 304
         
         mode = query.get('mode')
 
@@ -428,7 +431,7 @@ class Images(object):
             image.save(cache_file, format, quality=quality)
             cache_file.close()
         
-        return send_file(cache_path, mimetype=mimetype, cache_timeout=cache_timeout)
+        return send_file(cache_path, mimetype=mimetype, max_age=cache_timeout)
 
 
 

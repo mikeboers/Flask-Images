@@ -1,4 +1,12 @@
 
+3.0.4
+-----
+- Fix comparison between offset-aware and naive datetimes 
+
+3.0.3
+-----
+- Fix compatibility with itsdangerous 2.0+
+
 3.0.2
 -----
 - Fix a couple Python3 dict API changes.
