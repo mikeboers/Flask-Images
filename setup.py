@@ -14,14 +14,11 @@ setup(
     packages=['flask_image_resizer'],
 
     install_requires=[
-
         'Flask>=0.9',
-        'itsdangerous', # For Flask v0.9
-
-        'Pillow',
-        
-        'six',
-
+        'itsdangerous==2.1.2',  # For Flask v0.9
+        'Pillow==10.2.0',
+        'six==1.16.0',
+        'scour==0.38.2',
     ],
 
     classifiers=[

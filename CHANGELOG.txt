@@ -1,6 +1,8 @@
 3.0.6
 -----
 - Fix compatibility with Pillow 10.0.0 (ANTIALIAS is deprecated, using LANCZOS instead)
+- Add scour requirement to setup.py
+- Pin dependencies on setup.py
 
 3.0.5
 -----
