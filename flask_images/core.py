@@ -7,30 +7,19 @@ import datetime
 import errno
 import hashlib
 import logging
-import math
 import os
 import re
 import struct
-import sys
+import hmac
 
-from six import iteritems, PY3, string_types, text_type
-if PY3:
-    from urllib.parse import urlparse, urlencode, quote as urlquote
-    from urllib.request import urlopen
-    from urllib.error import HTTPError
-else:
-    from urlparse import urlparse
-    from urllib import urlencode, quote as urlquote
-    from urllib2 import urlopen, HTTPError
+from six import iteritems, string_types, text_type
+
+from urllib.parse import urlparse, urlencode, quote as urlquote
+from urllib.request import urlopen
+from urllib.error import HTTPError
 
 from PIL import Image, ImageFilter
 from flask import request, current_app, send_file, abort
-
-try:
-    from itsdangerous import Signer, constant_time_compare
-except ImportError:
-    from itsdangerous import Signer
-    from itsdangerous._compat import constant_time_compare
 
 from . import modes
 from .size import ImageSize
@@ -40,11 +29,11 @@ from .transform import Transform
 log = logging.getLogger(__name__)
 
 
-
 def encode_str(value):
     if isinstance(value, text_type):
         return value.encode('utf-8')
     return value
+
 
 def encode_int(value):
     return base64.urlsafe_b64encode(struct.pack('>I', int(value))).decode('utf-8').rstrip('=').lstrip('A')
@@ -60,7 +49,7 @@ def makedirs(path):
 
 # We must whitelist schemes which are permitted, otherwise craziness (such as
 # allowing access to the filesystem) may ensue.
-ALLOWED_SCHEMES = set(('http', 'https', 'ftp'))
+ALLOWED_SCHEMES = {'http', 'https', 'ftp'}
 
 # The options which we immediately recognize and shorten.
 LONG_TO_SHORT = dict(
@@ -81,11 +70,8 @@ LONG_TO_SHORT = dict(
 SHORT_TO_LONG = dict((v, k) for k, v in iteritems(LONG_TO_SHORT))
 
 
+class Images:
 
-
-class Images(object):
-    
-    
     def __init__(self, app=None):
         if app is not None:
             self.init_app(app)
@@ -118,7 +104,6 @@ class Images(object):
             }
             app.context_processor(lambda: ctx)
 
-
     def build_error_handler(self, error, endpoint, values):
 
         # See if we were asked for "images" or "images.<mode>".
@@ -127,7 +112,7 @@ class Images(object):
             '|'.join(re.escape(mode) for mode in modes.ALL)
         ), endpoint)
         if m:
-            
+
             filename = values.pop('filename')
 
             mode = m.group(1)
@@ -164,7 +149,7 @@ class Images(object):
             raise ValueError('images have no _anchor')
         if kwargs.get('_method'):
             raise ValueError('images have no _method')
-        
+
         # Remote URLs are encoded into the query.
         parsed = urlparse(local_path)
         if parsed.scheme or parsed.netloc:
@@ -178,7 +163,7 @@ class Images(object):
             abs_path = self.find_img(local_path)
             if abs_path:
                 kwargs['version'] = encode_int(int(os.path.getmtime(abs_path)))
-        
+
         # Prep the cache flag, which defaults to True.
         cache = kwargs.pop('cache', True)
         if not cache:
@@ -207,14 +192,17 @@ class Images(object):
             if v is not None and not k.startswith('_')
         }
         query = urlencode(sorted(iteritems(public_kwargs)), True)
-        signer = Signer(current_app.secret_key)
-        sig = signer.get_signature('%s?%s' % (local_path, query))
+        sig_auth = hmac.new(
+            current_app.secret_key.encode('utf-8'),
+            f'{local_path}?{query}'.encode('utf-8'),
+            digestmod='sha256'
+        )
 
         url = '%s/%s?%s&s=%s' % (
             current_app.config['IMAGES_URL'],
             urlquote(local_path, "/$-_.+!*'(),"),
             query,
-            sig.decode('utf-8'),
+            sig_auth.hexdigest(),
         )
 
         if external:
@@ -226,14 +214,14 @@ class Images(object):
             )
 
         return url
-        
+
     def find_img(self, local_path):
         local_path = os.path.normpath(local_path.lstrip('/'))
         for path_base in current_app.config['IMAGES_PATH']:
             path = os.path.join(current_app.root_path, path_base, local_path)
             if os.path.exists(path):
                 return path
-    
+
     def calculate_size(self, path, **kw):
         path = self.find_img(path)
         if not path:
@@ -241,7 +229,7 @@ class Images(object):
         return ImageSize(path=path, **kw)
 
     def resize(self, image, background=None, **kw):
-        
+
         size = ImageSize(image=image, **kw)
 
         # Get into the right colour space.
@@ -251,17 +239,20 @@ class Images(object):
         # Apply any requested transform.
         if size.transform:
             image = Transform(size.transform, image.size).apply(image)
-        
+
+        resample = Image.ANTIALIAS if hasattr(Image, 'ANTIALIAS') else Image.LANCZOS
+
         # Handle the easy cases.
         if size.mode in (modes.RESHAPE, None) or size.req_width is None or size.req_height is None:
-            return image.resize((size.width, size.height), Image.ANTIALIAS)
+
+            return image.resize((size.width, size.height), resample)
 
         if size.mode not in (modes.FIT, modes.PAD, modes.CROP):
             raise ValueError('unknown mode %r' % size.mode)
 
         if image.size != (size.op_width, size.op_height):
-            image = image.resize((size.op_width, size.op_height), Image.ANTIALIAS)
-        
+            image = image.resize((size.op_width, size.op_height), resample)
+
         if size.mode == modes.FIT:
             return image
 
@@ -269,22 +260,22 @@ class Images(object):
             pad_color = str(background or 'black')
             padded = Image.new('RGBA', (size.width, size.height), pad_color)
             padded.paste(image, (
-                (size.width  - size.op_width ) // 2,
+                (size.width - size.op_width ) // 2,
                 (size.height - size.op_height) // 2
             ))
             return padded
-            
+
         elif size.mode == modes.CROP:
 
-            dx = (size.op_width  - size.width ) // 2
+            dx = (size.op_width - size.width ) // 2
             dy = (size.op_height - size.height) // 2
             return image.crop(
                 (dx, dy, dx + size.width, dy + size.height)
             )
-            
+
         else:
             raise RuntimeError('unhandled mode %r' % size.mode)
-    
+
     def post_process(self, image, sharpen=None):
 
         if sharpen:
@@ -301,15 +292,20 @@ class Images(object):
 
         # Verify the signature.
         query = dict(iteritems(request.args))
-        old_sig = str(query.pop('s', None))
+        old_sig = bytes(query.pop('s', None), 'utf-8')
         if not old_sig:
             abort(404)
-        signer = Signer(current_app.secret_key)
-        new_sig = signer.get_signature('%s?%s' % (path, urlencode(sorted(iteritems(query)), True)))
-        if not constant_time_compare(str(old_sig), str(new_sig.decode('utf-8'))):
-            log.warning("Signature mismatch: url's {} != expected {}".format(old_sig, new_sig))
+        query_info = urlencode(sorted(iteritems(query)), True)
+        msg_auth = hmac.new(
+            current_app.secret_key.encode('utf-8'),
+            f'{path}?{query_info}'.encode('utf-8'),
+            digestmod='sha256'
+        )
+        new_sig = bytes(msg_auth.hexdigest(), 'utf-8')
+        if not hmac.compare_digest(old_sig, new_sig):
+            log.warning(f"Signature mismatch: url's {old_sig} != expected {new_sig}")
             abort(404)
-        
+
         # Expand kwargs.
 
         query = dict((SHORT_TO_LONG.get(k, k), v) for k, v in iteritems(query))
@@ -354,7 +350,7 @@ class Images(object):
         # log.debug('if_modified_since: %r' % request.if_modified_since)
         if request.if_modified_since and request.if_modified_since >= mtime:
             return '', 304
-        
+
         mode = query.get('mode')
 
         transform = query.get('transform')
@@ -376,6 +372,9 @@ class Images(object):
         sharpen = query.get('sharpen')
         sharpen = re.split(r'[+:;,_/ ]', sharpen) if sharpen else None
 
+        cache_mtime = None
+        cache_dir = None
+        cache_path = None
         if use_cache:
 
             # The parts in this initial list were parameters cached in version 1.
@@ -389,28 +388,30 @@ class Images(object):
             if enlarge:
                 cache_key_parts.append(('enlarge', enlarge))
 
-
             cache_key = hashlib.md5(repr(tuple(cache_key_parts)).encode('utf-8')).hexdigest()
             cache_dir = os.path.join(current_app.config['IMAGES_CACHE'], cache_key[:2])
             cache_path = os.path.join(cache_dir, cache_key + '.' + format)
             cache_mtime = os.path.getmtime(cache_path) if os.path.exists(cache_path) else None
-        
+
         mimetype = 'image/%s' % format
         cache_timeout = 31536000 if has_version else current_app.config['IMAGES_MAX_AGE']
 
         if not use_cache or not cache_mtime or cache_mtime < raw_mtime:
-            
+
             log.info('resizing %r for %s' % (path, query))
             image = Image.open(path)
-            image = self.resize(image,
-                background=background,
+            image = self.resize(
+                image,
+                BACKGROUND=background,
                 enlarge=enlarge,
                 height=height,
                 mode=mode,
                 transform=transform,
                 width=width,
             )
-            image = self.post_process(image,
+
+            image = self.post_process(
+                image,
                 sharpen=sharpen,
             )
 
@@ -421,22 +422,24 @@ class Images(object):
                     ('Content-Type', mimetype),
                     ('Cache-Control', str(cache_timeout)),
                 ]
-            
+
             makedirs(cache_dir)
             cache_file = open(cache_path, 'wb')
             image.save(cache_file, format, quality=quality)
             cache_file.close()
-        
-        return send_file(cache_path, mimetype=mimetype, cache_timeout=cache_timeout)
-
+        try:
+            return send_file(cache_path, mimetype=mimetype, max_age=cache_timeout)
+        except TypeError:
+            return send_file(cache_path, mimetype=mimetype, cache_timeout=cache_timeout)
 
 
 def resized_img_size(path, **kw):
     self = current_app.extensions['images']
     return self.calculate_size(path, **kw)
 
+
 def resized_img_attrs(path, hidpi=None, width=None, height=None, enlarge=False, **kw):
-    
+
     self = current_app.extensions['images']
 
     page = image = self.calculate_size(
@@ -469,7 +472,7 @@ def resized_img_attrs(path, hidpi=None, width=None, height=None, enlarge=False, 
                     kw[k[6:]] = v
 
             kw.setdefault('quality', 60)
-        
+
         else:
             hidpi = False
 
@@ -488,7 +491,7 @@ def resized_img_attrs(path, hidpi=None, width=None, height=None, enlarge=False, 
             enlarge=enlarge,
             **kw
         ),
-    
+
     }
 
 

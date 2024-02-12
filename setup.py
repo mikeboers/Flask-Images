@@ -14,10 +14,7 @@ setup(
     packages=['flask_images'],
 
     install_requires=[
-
         'Flask>=0.9',
-        'itsdangerous', # For Flask v0.9
-
         # We need either PIL, or the newer Pillow. Since this may induce some
         # dependency madness, I have created a module that should flatten that
         # out. See: https://github.com/mikeboers/Flask-Images/pull/10 for more.
@@ -39,7 +36,7 @@ setup(
     ],
 
     tests_require=[
-        'nose>=1.0',
+        'nose-py3>=1.6.0',
     ],
     test_suite='nose.collector',
 
