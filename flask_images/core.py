@@ -3,17 +3,15 @@ from __future__ import division
 from io import BytesIO as StringIO
 from subprocess import call
 import base64
-import cgi
 import datetime
 import errno
 import hashlib
 import hmac
+import html
 import logging
-import math
 import os
 import re
 import struct
-import sys
 
 from six import iteritems, PY3, string_types, text_type
 if PY3:
@@ -508,7 +506,7 @@ def resized_img_tag(path, **kw):
         except KeyError:
             pass
     attrs.update(resized_img_attrs(path, **kw))
-    return '<img %s/>' % ' '.join('%s="%s"' % (k, cgi.escape(str(v))) for k, v in sorted(iteritems(attrs)))
+    return '<img %s/>' % ' '.join('%s="%s"' % (k, html.escape(str(v))) for k, v in sorted(iteritems(attrs)))
 
 
 def resized_img_src(path, **kw):
