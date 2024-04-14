@@ -7,13 +7,13 @@ import cgi
 import datetime
 import errno
 import hashlib
+import hmac
 import logging
 import math
 import os
 import re
 import struct
 import sys
-import hmac
 
 from six import iteritems, PY3, string_types, text_type
 if PY3:
@@ -78,6 +78,10 @@ LONG_TO_SHORT = dict(
 SHORT_TO_LONG = dict((v, k) for k, v in iteritems(LONG_TO_SHORT))
 
 
+def as_bytes(x):
+    if isinstance(x, bytes):
+        return x
+    return x.encode('utf8')
 
 
 class Images(object):
@@ -204,9 +208,10 @@ class Images(object):
             if v is not None and not k.startswith('_')
         }
         query = urlencode(sorted(iteritems(public_kwargs)), True)
-        sig_auth = hmac.new(current_app.secret_key.encode('utf-8'),
-                       f'{local_path}?{query}'.encode('utf-8'),
-                       digestmod='sha256')
+        sig_auth = hmac.new(as_bytes(current_app.secret_key),
+            f'{local_path}?{query}'.encode('utf-8'),
+            digestmod='sha256'
+        )
 
         # I am using hexdigest to increase readability in warnings.
         url = '%s/%s?%s&s=%s' % (
@@ -304,9 +309,10 @@ class Images(object):
         if not old_sig:
             abort(404)
         query_info = urlencode(sorted(iteritems(query)), True)
-        msg_auth = hmac.new(current_app.secret_key.encode('utf-8'),
-                           f'{path}?{query_info}'.encode('utf-8'),
-                           digestmod='sha256')
+        msg_auth = hmac.new(as_bytes(current_app.secret_key),
+            f'{path}?{query_info}'.encode('utf-8'),
+            digestmod='sha256',
+        )
         new_sig = bytes(msg_auth.hexdigest(), 'utf-8')
         if not hmac.compare_digest(old_sig, new_sig):
             log.warning(f"Signature mismatch: url's {old_sig} != expected {new_sig}")
