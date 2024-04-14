@@ -256,13 +256,13 @@ class Images(object):
         
         # Handle the easy cases.
         if size.mode in (modes.RESHAPE, None) or size.req_width is None or size.req_height is None:
-            return image.resize((size.width, size.height), Image.ANTIALIAS)
+            return image.resize((size.width, size.height), Image.LANCZOS)
 
         if size.mode not in (modes.FIT, modes.PAD, modes.CROP):
             raise ValueError('unknown mode %r' % size.mode)
 
         if image.size != (size.op_width, size.op_height):
-            image = image.resize((size.op_width, size.op_height), Image.ANTIALIAS)
+            image = image.resize((size.op_width, size.op_height), Image.LANCZOS)
         
         if size.mode == modes.FIT:
             return image
