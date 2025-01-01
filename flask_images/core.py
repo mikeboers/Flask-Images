@@ -59,6 +59,7 @@ ALLOWED_SCHEMES = set(('http', 'https', 'ftp'))
 
 # The options which we immediately recognize and shorten.
 LONG_TO_SHORT = dict(
+    align='a',
     background='b',
     cache='c',
     enlarge='e',
@@ -242,6 +243,28 @@ class Images(object):
             abort(404)
         return ImageSize(path=path, **kw)
 
+    def eval_align(self, align, dx, dy):
+        x = dx
+        y = dy
+        for part in (align or '').split(','):
+            part = part.strip()
+            if not part:
+                continue
+            if part in ('c', 'center', 'centre'):
+                x = dx
+                y = dy
+            elif part in ('t', 'top'):
+                y = 0
+            elif part in ('b', 'bot', 'bottom'):
+                y = 2 * dy
+            else:
+                locals = dict(x=x, y=y)
+                eval(compile(part, '<align>', 'exec'), locals, locals)
+                log.error(f"HERE {x=} {y=} {locals['x']=} {locals['y']=}")
+                x = locals['x']
+                y = locals['y']
+        return x, y
+
     def resize(self, image, background=None, **kw):
         
         size = ImageSize(image=image, **kw)
@@ -278,10 +301,12 @@ class Images(object):
             
         elif size.mode == modes.CROP:
 
+            align = kw.get('align')
             dx = (size.op_width  - size.width ) // 2
             dy = (size.op_height - size.height) // 2
+            x, y = self.eval_align(align, dx, dy)
             return image.crop(
-                (dx, dy, dx + size.width, dy + size.height)
+                (x, y, x + size.width, y + size.height)
             )
             
         else:
@@ -362,6 +387,7 @@ class Images(object):
             return '', 304
         
         mode = query.get('mode')
+        align = query.get('align')
 
         transform = query.get('transform')
         transform = re.split(r'[;,_/ ]', transform) if transform else None
@@ -388,6 +414,8 @@ class Images(object):
             # In order to avoid regenerating all images when a new feature is
             # added, we append (feature_name, value) tuples to the end.
             cache_key_parts = [path, mode, width, height, quality, format, background]
+            if align:
+                cache_key_parts.append(('align', align))
             if transform:
                 cache_key_parts.append(('transform', transform))
             if sharpen:
@@ -409,6 +437,7 @@ class Images(object):
             log.info('resizing %r for %s' % (path, query))
             image = Image.open(path)
             image = self.resize(image,
+                align=align,
                 background=background,
                 enlarge=enlarge,
                 height=height,
