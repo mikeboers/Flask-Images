@@ -3,7 +3,7 @@ from __future__ import division
 from io import BytesIO as StringIO
 from subprocess import call
 import base64
-import datetime
+import datetime as dt
 import errno
 import hashlib
 import hmac
@@ -23,7 +23,7 @@ else:
     from urllib import urlencode, quote as urlquote
     from urllib2 import urlopen, HTTPError
 
-from PIL import Image, ImageFilter
+from PIL import Image, ImageChops, ImageFilter
 from flask import request, current_app, send_file, abort
 
 
@@ -68,6 +68,7 @@ LONG_TO_SHORT = dict(
     mode='m',
     quality='q',
     transform='x',
+    trim='t',
     url='u',
     version='v',
     width='w',
@@ -266,12 +267,22 @@ class Images(object):
         return x, y
 
     def resize(self, image, background=None, **kw):
-        
-        size = ImageSize(image=image, **kw)
 
         # Get into the right colour space.
         if not image.mode.upper().startswith('RGB'):
             image = image.convert('RGBA')
+
+        trim = kw.pop('trim', None)
+        print("TRIM", trim)
+        if trim is not None:
+            bg = Image.new(image.mode, image.size, image.getpixel((0,0)))
+            diff = ImageChops.difference(image, bg)
+            diff = ImageChops.add(diff, diff, 2.0, -trim)
+            bbox = diff.getbbox()
+            if bbox:
+                image = image.crop(bbox)
+
+        size = ImageSize(image=image, **kw)
 
         # Apply any requested transform.
         if size.transform:
@@ -291,7 +302,7 @@ class Images(object):
             return image
 
         elif size.mode == modes.PAD:
-            pad_color = str(background or 'black')
+            pad_color = background or image.getpixel((0, 0))
             padded = Image.new('RGBA', (size.width, size.height), pad_color)
             padded.paste(image, (
                 (size.width  - size.op_width ) // 2,
@@ -380,7 +391,7 @@ class Images(object):
                 abort(404) # Not found.
 
         raw_mtime = os.path.getmtime(path)
-        mtime = datetime.datetime.utcfromtimestamp(raw_mtime).replace(microsecond=0)
+        mtime = dt.datetime.fromtimestamp(raw_mtime, dt.timezone.utc).replace(microsecond=0)
         # log.debug('last_modified: %r' % mtime)
         # log.debug('if_modified_since: %r' % request.if_modified_since)
         if request.if_modified_since and request.if_modified_since >= mtime:
