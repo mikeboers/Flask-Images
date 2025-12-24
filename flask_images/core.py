@@ -339,7 +339,7 @@ class Images(object):
 
         # Verify the signature.
         query = dict(iteritems(request.args))
-        old_sig = bytes(query.pop('s', None), 'utf-8')
+        old_sig = bytes(query.pop('s', ''), 'utf-8')
         if not old_sig:
             abort(404)
         query_info = urlencode(sorted(iteritems(query)), True)
